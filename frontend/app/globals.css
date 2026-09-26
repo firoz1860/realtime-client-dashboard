@@ -690,7 +690,7 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; height
    dark styles changed panel backgrounds without changing all of their text. */
 .dashboard-shell {
   color-scheme: light;
-  background: #f4f6fb !important;
+  background: #eef1f8 !important;
 }
 .dashboard-shell > .sidebar { z-index: 140 !important; }
 
@@ -701,8 +701,8 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; height
   box-shadow: none !important;
 }
 .dashboard-shell .content-wrap {
-  background: #fff;
-  border: 1px solid #e8ebf2;
+  background: linear-gradient(140deg, #f9faff 0%, #f5f7fc 100%);
+  border: 1px solid #e4e8f1;
   border-radius: 18px;
   box-shadow: 0 14px 36px rgba(35, 47, 78, .06);
   padding: clamp(22px, 3vw, 40px);
@@ -716,8 +716,8 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; height
 .dashboard-shell .workspace-empty span { color: #69758a; }
 
 .dashboard-shell .topbar {
-  background: #293146 !important;
-  border: 1px solid #3d4760 !important;
+  background: linear-gradient(110deg, #283358 0%, #353e68 100%) !important;
+  border: 1px solid #48537c !important;
   box-shadow: 0 14px 32px rgba(32, 42, 67, .16) !important;
   color: #f7f9ff;
 }
@@ -725,8 +725,8 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; height
 .dashboard-shell .topbar .breadcrumbs span { color: #b4bdd2 !important; }
 .dashboard-shell .topbar .breadcrumbs strong { color: #f7f9ff !important; }
 .dashboard-shell .topbar .header-search {
-  background: #222a3d !important;
-  border-color: #48536d !important;
+  background: #222b4d !important;
+  border-color: #55618a !important;
   color: #b9c3d9 !important;
   box-shadow: none;
 }
@@ -738,11 +738,57 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; height
 .dashboard-shell .topbar .icon-button:hover,
 .dashboard-shell .topbar .user-button:hover { background: #39445e; }
 .dashboard-shell .topbar .header-divider { background: #59637b; }
+.dashboard-shell .topbar .guest-signin {
+  padding: 8px 13px;
+  border: 1px solid #7180ae;
+  border-radius: 9px;
+  background: #404d79;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.dashboard-shell .topbar .guest-signin:hover { background: #526298; }
+.dashboard-shell .topbar button:focus-visible { outline-color: #c9d3ff; }
+.dashboard-shell .topbar .icon-button { overflow: visible; }
+.dashboard-shell .topbar .topbar-badge {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  min-width: 16px;
+  padding: 2px 4px;
+  border: 2px solid #303a61;
+  border-radius: 99px;
+  background: #f17481;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+}
+.dashboard-shell .event-shake { transform-origin: 50% 18%; animation: event-shake .6s ease-in-out; }
+@keyframes event-shake {
+  0%, 100% { transform: rotate(0); }
+  20%, 60% { transform: rotate(-13deg); }
+  40%, 80% { transform: rotate(11deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-shell .event-shake { animation: none; }
+}
 .dashboard-shell .topbar :is(.global-results, .notification-popover, .profile-menu) {
   color: #293145;
   background: #fff !important;
   border-color: #e5e8f2;
 }
+
+.dashboard-shell .settings-fields input:not([readonly]) {
+  background: #fff;
+  color: #252d41;
+  border-color: #cbd3e6;
+}
+.dashboard-shell .settings-fields input[readonly] { color: #667187; }
+.dashboard-shell .settings-note { margin: 14px 0; color: #69758a; font-size: 11px; }
+.dashboard-shell .settings-error { color: #ac3949; font-size: 11px; }
+.dashboard-shell .settings-save { margin-top: 16px; }
 
 @media (max-width: 768px) {
   .dashboard-shell > .main-area { padding: 12px !important; gap: 12px; }

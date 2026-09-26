@@ -76,11 +76,12 @@ Open http://localhost:3000 → **Log in** → use a seeded account:
 - **Chat** — project-scoped history and Socket.io messages for signed-in users.
 - **Activity and notifications** — live events and read/unread actions.
 
-**Read-only surfaces:** Settings shows account details; Help center contains
-brief built-in guidance. Guest mode previews the UI without backend data.
+**Settings:** Signed-in users can update their own display name; email and role
+are managed by an admin. Help center contains brief built-in guidance. Guest
+mode previews the UI without backend data and shows a Log in action.
 The landing-page illustration is a design preview. This repository does not
 provide self-service signup, email invitations, multiple workspaces, support
-messaging, or editable account preferences.
+messaging, or editable account preferences beyond the display name.
 
 Large lists currently show at most the first 100 records per API request;
 the activity and notification views show at most 50 records. Pagination is

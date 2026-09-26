@@ -26,6 +26,8 @@ export interface WorkspaceData {
   loading: boolean
   error: string | null
   chatUnread: number
+  notificationPulse: number
+  chatPulse: number
   notifications: NotificationItem[]
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: () => void
@@ -84,6 +86,10 @@ export function useWorkspaceData(user: AuthUser | null, chatActive = false): Wor
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [chatUnread, setChatUnread] = useState(0)
+  const [notificationPulse, setNotificationPulse] = useState(0)
+  const [chatPulse, setChatPulse] = useState(0)
+  const seenNotifications = useRef(new Set<string>())
+  const seenMessages = useRef(new Set<string>())
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const socketRef = useRef<AppSocket | null>(null)
   const chatActiveRef = useRef(chatActive)
@@ -113,6 +119,8 @@ export function useWorkspaceData(user: AuthUser | null, chatActive = false): Wor
   useEffect(() => {
     if (!user) {
       setKpis([]); setFeed([]); setUnread(0); setOnlineUsers(null); setChatUnread(0); setNotifications([])
+      setNotificationPulse(0); setChatPulse(0)
+      seenNotifications.current.clear(); seenMessages.current.clear()
       return
     }
 
@@ -163,6 +171,11 @@ export function useWorkspaceData(user: AuthUser | null, chatActive = false): Wor
     socket.on('notification:unread-count', ({ count }) => { if (active) setUnread(count) })
     socket.on('notification:new', (n) => {
       if (!active) return
+      if (!seenNotifications.current.has(n.id)) {
+        seenNotifications.current.add(n.id)
+        if (seenNotifications.current.size > 1000) seenNotifications.current.clear()
+        setNotificationPulse((count) => count + 1)
+      }
       setNotifications((prev) => dedupePrepend(prev, n, NOTIF_CAP))
     })
     socket.on('notification:read', ({ id }) => {
@@ -177,8 +190,13 @@ export function useWorkspaceData(user: AuthUser | null, chatActive = false): Wor
       setKpis((prev) => prev.map((kpi) => (kpi.iconKey === 'users' ? { ...kpi, value: String(count) } : kpi)))
     })
     socket.on('message:new', (msg) => {
-      if (!active || chatActiveRef.current) return
-      if (msg.sender?.id === user.id) return
+      if (!active) return
+      if ((msg.senderId ?? msg.sender?.id) === user.id) return
+      if (seenMessages.current.has(msg.id)) return
+      seenMessages.current.add(msg.id)
+      if (seenMessages.current.size > 1000) seenMessages.current.clear()
+      setChatPulse((count) => count + 1)
+      if (chatActiveRef.current) return
       setChatUnread((n) => n + 1)
     })
 
@@ -191,7 +209,7 @@ export function useWorkspaceData(user: AuthUser | null, chatActive = false): Wor
   }, [user])
 
   return useMemo(
-    () => ({ kpis, feed, unread, onlineUsers, loading, error, chatUnread, notifications, markNotificationRead, markAllNotificationsRead }),
-    [kpis, feed, unread, onlineUsers, loading, error, chatUnread, notifications, markNotificationRead, markAllNotificationsRead],
+    () => ({ kpis, feed, unread, onlineUsers, loading, error, chatUnread, notificationPulse, chatPulse, notifications, markNotificationRead, markAllNotificationsRead }),
+    [kpis, feed, unread, onlineUsers, loading, error, chatUnread, notificationPulse, chatPulse, notifications, markNotificationRead, markAllNotificationsRead],
   )
 }

@@ -39,7 +39,8 @@ or `.git` directory are included.
 ## Known remaining scope
 
 The repository has no backend models/endpoints for self-service signup, email
-invitations, multiple workspaces, support messaging, or editable user settings.
+invitations, multiple workspaces, support messaging, or account settings beyond
+the signed-in user's display name.
 These are not represented as working buttons. Frontend list views currently
 fetch a maximum of 100 projects/tasks/users, or 50 activity/notification
 entries, without a pagination control. The landing page illustration is static.

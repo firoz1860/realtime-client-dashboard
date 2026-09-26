@@ -103,5 +103,7 @@ export const authService = {
     const user = await userRepository.findSafeById(userId)
     if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'User was not found.')
     return user
-  }
+  },
+  updateProfile: (userId: string, input: { name: string }) =>
+    userRepository.update(userId, { name: input.name })
 }

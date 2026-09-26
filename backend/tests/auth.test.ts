@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   findByEmail: vi.fn(),
   findSafeById: vi.fn(),
+  updateUser: vi.fn(),
   createRefresh: vi.fn(),
   revokeByHash: vi.fn(),
   transaction: vi.fn()
@@ -14,7 +15,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../src/repositories/user.repository', () => ({
   userRepository: {
     findByEmail: mocks.findByEmail,
-    findSafeById: mocks.findSafeById
+    findSafeById: mocks.findSafeById,
+    update: mocks.updateUser
   }
 }))
 vi.mock('../src/repositories/refresh-token.repository', () => ({
@@ -98,5 +100,13 @@ describe('auth service', () => {
   it('logs out by revoking the hashed refresh token', async () => {
     await authService.logout('secret-token')
     expect(mocks.revokeByHash).toHaveBeenCalledWith(hashToken('secret-token'))
+  })
+
+  it('updates only the authenticated user’s display name without returning credentials', async () => {
+    const id = randomUUID()
+    mocks.updateUser.mockResolvedValue({ id, name: 'Updated Name', email: 'person@test.com', role: Role.DEVELOPER, isActive: true })
+    const result = await authService.updateProfile(id, { name: 'Updated Name' })
+    expect(mocks.updateUser).toHaveBeenCalledWith(id, { name: 'Updated Name' })
+    expect(result).not.toHaveProperty('passwordHash')
   })
 })

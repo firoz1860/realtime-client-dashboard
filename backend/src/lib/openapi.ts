@@ -24,7 +24,10 @@ export const openApiDocument = {
     '/api/auth/login': { post: { summary: 'Login', requestBody: { required: true }, responses: { '200': { description: 'Access token and user; refresh token is HttpOnly cookie' }, '401': { description: 'Invalid credentials' } } } },
     '/api/auth/refresh': { post: { summary: 'Rotate refresh session', responses: { '200': { description: 'New access token and rotated refresh cookie' }, '401': { description: 'Invalid, expired or revoked refresh session' }, '409': { description: 'Concurrent refresh race' } } } },
     '/api/auth/logout': { post: { summary: 'Revoke current refresh session', responses: { '200': { description: 'Logged out' } } } },
-    '/api/auth/me': { get: { summary: 'Current user', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Current user' } } } },
+    '/api/auth/me': {
+      get: { summary: 'Current user', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Current user' } } },
+      patch: { summary: 'Update own display name', description: 'Authenticated users can update only their own name.', security: [{ bearerAuth: [] }], requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['name'], additionalProperties: false, properties: { name: { type: 'string', minLength: 2, maxLength: 100 } } } } } }, responses: { '200': { description: 'Updated current user' } } }
+    },
     '/api/users/developers': { get: { summary: 'List active developers for assignment', description: 'ADMIN or PROJECT_MANAGER. Returns safe public assignment fields only.', security: [{ bearerAuth: [] }], responses: { '200': { description: 'Active developer directory' }, '401': { description: 'Authentication required' }, '403': { description: 'Role not allowed' } } } },
     '/api/users': {
       get: { summary: 'List users', description: 'ADMIN', security: [{ bearerAuth: [] }], parameters: [{ name: 'page', in: 'query' }, { name: 'limit', in: 'query' }, { name: 'role', in: 'query' }, { name: 'isActive', in: 'query' }, { name: 'search', in: 'query' }], responses: { '200': { description: 'Paginated users' }, '403': { description: 'Admin required' } } },

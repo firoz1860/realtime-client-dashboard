@@ -151,6 +151,8 @@ export const api = {
 
   me: () => request<AuthUser>('/auth/me'),
 
+  updateProfile: (name: string) => request<AuthUser>('/auth/me', { method: 'PATCH', body: { name } }),
+
   logout: async (): Promise<void> => {
     try {
       await request<{ loggedOut: boolean }>('/auth/logout', { method: 'POST', auth: false, retryOn401: false })
