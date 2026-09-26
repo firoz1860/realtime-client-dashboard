@@ -20,6 +20,7 @@ export const taskRepository = {
     user: AuthUser
     page: number
     limit: number
+    search?: string
     status?: TaskStatus
     priority?: TaskPriority
     dueDateFrom?: Date
@@ -29,6 +30,11 @@ export const taskRepository = {
   }) => {
     const where: Prisma.TaskWhereInput = {
       ...taskScope(input.user),
+      ...(input.search ? { OR: [
+        { title: { contains: input.search, mode: 'insensitive' as const } },
+        { description: { contains: input.search, mode: 'insensitive' as const } },
+        { project: { name: { contains: input.search, mode: 'insensitive' as const } } }
+      ] } : {}),
       ...(input.status ? { status: input.status } : {}),
       ...(input.priority ? { priority: input.priority } : {}),
       ...(input.projectId ? { projectId: input.projectId } : {}),

@@ -1,6 +1,6 @@
 // Socket.io client wrapper for the realtime feed, notifications, and presence.
 import { io, type Socket } from 'socket.io-client'
-import { API_BASE } from './api'
+import { API_BASE, api, getAccessToken } from './api'
 import type { ActivityItem, Message, NotificationItem } from './types'
 
 // Server -> client events (mirrors backend ServerToClientEvents).
@@ -24,13 +24,24 @@ interface ClientToServerEvents {
 export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>
 
 /** Connect with the in-memory access token. Backend authenticates the handshake. */
-export const connectSocket = (accessToken: string): AppSocket =>
-  io(API_BASE, {
+export const connectSocket = (accessToken: string): AppSocket => {
+  const socket: AppSocket = io(API_BASE, {
     auth: { token: accessToken },
     transports: ['websocket'],
     withCredentials: true,
     autoConnect: true,
   })
+  socket.on('connect_error', () => {
+    void api.me().then(() => {
+      const token = getAccessToken()
+      if (token && token !== (socket.auth as { token: string }).token) {
+        socket.auth = { token }
+        socket.connect()
+      }
+    }).catch(() => undefined)
+  })
+  return socket
+}
 
 /** Promise wrapper around the activity:catchup ack (last N missed events). */
 export const catchupActivity = (socket: AppSocket, limit = 20): Promise<ActivityItem[]> =>

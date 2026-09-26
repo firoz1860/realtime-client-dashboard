@@ -87,6 +87,7 @@ export const projectService = {
     if (user.role !== Role.ADMIN && !(user.role === Role.PROJECT_MANAGER && existing.createdById === user.id)) {
       throw new AppError(403, 'FORBIDDEN', 'You do not have permission to update this project.')
     }
+    if (Object.entries(input).every(([key, value]) => existing[key as keyof typeof existing] === value)) return existing
     if (input.clientId && !(await clientRepository.findById(input.clientId))) throw new AppError(422, 'INVALID_CLIENT', 'Client does not exist.')
 
     const result = await prisma.$transaction(async (tx) => {

@@ -1,22 +1,29 @@
 # Running the Realtime Client Dashboard (frontend + backend)
 
 Frontend = Next.js (`:3000`). Backend = Express + Prisma + Socket.io (`:4000`).
-They are already wired together; the only thing needed to go live is a working
-PostgreSQL `DATABASE_URL`.
+They are wired together. Running locally requires PostgreSQL, backend environment
+settings, and Node.js 20 or newer.
 
 ## 1. Database (one-time)
 
-The backend needs Postgres. Pick ONE:
+Copy the backend template first:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Set distinct, random values of at least 32 characters for `JWT_ACCESS_SECRET`
+and `JWT_REFRESH_SECRET` in `backend/.env`. The backend needs Postgres. Pick ONE:
 
 ### Option A — use your existing Postgres on localhost:5432
-Create the role + database the default `.env` expects (run inside WSL):
+Create the role + database the sample `.env` expects (run where Postgres is installed):
 
 ```bash
 sudo -u postgres psql -c "CREATE ROLE dashboard WITH LOGIN PASSWORD 'dashboard';"
 sudo -u postgres psql -c "CREATE DATABASE dashboard OWNER dashboard;"
 ```
 
-Now `backend/.env`'s default `DATABASE_URL` works as-is.
+The sample `DATABASE_URL` now points to that local database.
 
 ### Option B — point at any Postgres (local or cloud)
 Edit `backend/.env` and set:
@@ -29,8 +36,8 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME?schema=public
 
 ```bash
 cd backend
-npm install
-npm run prisma:generate     # once (already done)
+npm ci
+npm run prisma:generate
 npm run prisma:deploy       # apply migration  (or: npm run prisma:migrate)
 npm run prisma:seed         # 1 admin, 2 PMs, 4 devs, 3 projects, tasks, activity
 npm run dev                 # http://localhost:4000
@@ -40,7 +47,7 @@ npm run dev                 # http://localhost:4000
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev                 # http://localhost:3000
 ```
 
@@ -52,7 +59,7 @@ Open http://localhost:3000 → **Log in** → use a seeded account:
 | Project Manager | pm1@dashboard.test     | `Manager123!`  |
 | Developer       | dev1@dashboard.test    | `Developer123!`|
 
-## What is wired to the backend (this pass)
+## What is wired to the backend
 
 - **Auth** — real login → JWT access token (in memory) + HttpOnly refresh cookie;
   session restored on reload via the cookie; sign-out clears it. Role comes from
@@ -62,8 +69,22 @@ Open http://localhost:3000 → **Log in** → use a seeded account:
   events from the DB, then `activity:new` streams updates in real time.
 - **Notifications** — unread count badge, live via `notification:unread-count`.
 - **Presence** — admin "Online now" KPI via the `presence:count` event.
+- **Projects and tasks** — role-scoped lists, search, creation, task status
+  updates, and date/status filters. Calendar uses real task due dates.
+- **Team and clients** — admin account creation and new-client action in the
+  project dialog; managers see developers and can select existing clients.
+- **Chat** — project-scoped history and Socket.io messages for signed-in users.
+- **Activity and notifications** — live events and read/unread actions.
 
-Chat / Calendar / Team / Help remain UI mockups (no backend counterpart).
+**Read-only surfaces:** Settings shows account details; Help center contains
+brief built-in guidance. Guest mode previews the UI without backend data.
+The landing-page illustration is a design preview. This repository does not
+provide self-service signup, email invitations, multiple workspaces, support
+messaging, or editable account preferences.
+
+Large lists currently show at most the first 100 records per API request;
+the activity and notification views show at most 50 records. Pagination is
+available in the backend, but the frontend does not yet offer paging controls.
 
 ## Deploying (Vercel + Render)
 
@@ -83,7 +104,8 @@ Chat / Calendar / Team / Help remain UI mockups (no backend counterpart).
   COOKIE_SAME_SITE=none                              # required: cross-site cookie
   ```
   (`secure` cookies turn on automatically when `NODE_ENV=production`.)
-- Seed once from the Render shell: `npm run prisma:seed`.
+- For a demo environment only, seed once from the Render shell with
+  `npm run prisma:seed`; the seed uses known demonstration credentials.
 
 ### Frontend → Vercel (root directory = `frontend`)
 - **Environment variable:**

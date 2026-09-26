@@ -11,7 +11,7 @@ const envSchema = z.object({
   JWT_AUDIENCE: z.string().min(1).default('realtime-client-dashboard-web'),
   ACCESS_TOKEN_EXPIRES_IN: z.string().default('15m'),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('7d'),
-  CLIENT_URL: z.string().url().default('http://localhost:5173'),
+  CLIENT_URL: z.string().url().default('http://localhost:3000'),
   CORS_ORIGIN: z.string().url().optional(),
   SOCKET_CORS_ORIGIN: z.string().url().optional(),
   COOKIE_NAME: z.string().min(1).default('refreshToken'),

@@ -49,6 +49,7 @@ export const updateTaskBodySchema = z.object({
 }).refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required.' })
 
 export const taskQuerySchema = paginationSchema.extend({
+  search: z.string().trim().min(1).max(100).optional(),
   status: z.nativeEnum(TaskStatus).optional(),
   priority: z.nativeEnum(TaskPriority).optional(),
   dueDateFrom: dateInputSchema().optional(),

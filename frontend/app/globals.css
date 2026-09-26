@@ -670,3 +670,39 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; height
   .content-wrap .page-intro { flex-direction: column !important; align-items: stretch !important; gap: 16px; }
   .content-wrap .page-intro > div:first-child { width: 100%; text-align: left; }
 }
+
+/* Keep the existing glass dashboard while allowing navigation and menus to work. */
+.dashboard-shell .topbar { overflow: visible !important; }
+.topbar .header-search { position: relative; }
+.header-search .global-results { top: calc(100% + 8px); left: 0; right: auto; width: min(290px, calc(100vw - 32px)); }
+.workspace-switcher { cursor: default; }
+.workspace-item.static-item { cursor: default; }
+.workspace-item.static-item:hover { transform: none; box-shadow: none; }
+:is(button, input, select):focus-visible { outline: 2px solid #5965ef; outline-offset: 2px; }
+
+@media (min-width: 769px) {
+  .dashboard-shell > .sidebar:focus-within { width: var(--sidebar-expanded) !important; min-width: var(--sidebar-expanded) !important; z-index: 140; }
+  .dashboard-shell > .sidebar:focus-within :is(.brand, .workspace-switcher, .sidebar-nav, .sidebar-bottom, .profile) { width: 100% !important; min-width: 0 !important; max-width: none !important; }
+  .dashboard-shell > .sidebar:focus-within .nav-item { width: 100% !important; min-width: 0 !important; justify-content: flex-start !important; gap: 10px !important; padding: 0 8px !important; }
+  .dashboard-shell > .sidebar:focus-within :is(.brand > span, .workspace-switcher > div:nth-child(2), .nav-label, .nav-item > span, .nav-item > b, .profile > *:not(.profile-avatar)) { display: block !important; opacity: 1 !important; width: auto !important; max-width: 180px !important; transform: none !important; pointer-events: auto !important; }
+}
+@media (max-width: 768px) {
+  .dashboard-shell > .sidebar { z-index: 140 !important; }
+  .mobile-backdrop { z-index: 130 !important; }
+  .dashboard-shell .topbar { z-index: 120 !important; }
+  .workspace-toolbar { flex-wrap: wrap; }
+  .workspace-toolbar .mini-search { flex: 1 1 100%; }
+  .project-modal { width: min(100% - 24px, 480px); }
+}
+.inline-client-form {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e8e9ef;
+  border-radius: 12px;
+  background: #fbfbfe;
+}
+
+.inline-client-form .primary-button {
+  justify-self: start;
+}

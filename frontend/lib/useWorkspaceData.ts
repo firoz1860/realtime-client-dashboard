@@ -6,6 +6,7 @@
 // cross-project chat-unread tracking.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getAccessToken } from './api'
+import { mergeActivity } from './activity-feed'
 import { dashboardApi, notificationApi, projectApi, taskApi } from './endpoints'
 import { catchupActivity, connectSocket, type AppSocket } from './socket'
 import type { ActivityItem, AdminDashboard, AuthUser, DeveloperDashboard, NotificationItem, PmDashboard, TaskStatus } from './types'
@@ -95,12 +96,18 @@ export function useWorkspaceData(user: AuthUser | null, chatActive = false): Wor
 
   const markNotificationRead = useCallback((id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
-    void notificationApi.markRead(id).catch(() => undefined)
+    void notificationApi.markRead(id)
+      .then(() => notificationApi.unreadCount())
+      .then(({ count }) => setUnread(count))
+      .catch(() => { void notificationApi.list({ limit: 8 }).then(setNotifications).catch(() => undefined) })
   }, [])
 
   const markAllNotificationsRead = useCallback(() => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
-    void notificationApi.markAllRead().catch(() => undefined)
+    void notificationApi.markAllRead()
+      .then(() => notificationApi.unreadCount())
+      .then(({ count }) => setUnread(count))
+      .catch(() => { void notificationApi.list({ limit: 8 }).then(setNotifications).catch(() => undefined) })
   }, [])
 
   useEffect(() => {
@@ -113,19 +120,19 @@ export function useWorkspaceData(user: AuthUser | null, chatActive = false): Wor
     setLoading(true)
     setError(null)
 
-    // 1. Initial REST fetch: role dashboard + unread count + recent notifications.
-    void Promise.all([dashboardApi.byRole(user.role), notificationApi.unreadCount(), notificationApi.list({ limit: 8 })])
-      .then(([dashboard, unreadRes, notifs]) => {
+    // Keep dashboard metrics usable even if notification delivery is temporarily unavailable.
+    void dashboardApi.byRole(user.role)
+      .then((dashboard) => {
         if (!active) return
         const online = user.role === 'ADMIN' ? (dashboard as AdminDashboard).onlineUsers : null
         setOnlineUsers(online)
         setKpis(buildKpis(user.role, dashboard, online))
-        setUnread(unreadRes.count)
-        setNotifications(notifs)
-        if (user.role === 'ADMIN') setFeed((dashboard as AdminDashboard).globalActivity ?? [])
+        if (user.role === 'ADMIN') setFeed((prev) => mergeActivity(prev, (dashboard as AdminDashboard).globalActivity ?? [], FEED_CAP))
       })
       .catch((err: unknown) => { if (active) setError(err instanceof Error ? err.message : 'Failed to load dashboard.') })
       .finally(() => { if (active) setLoading(false) })
+    void notificationApi.unreadCount().then(({ count }) => { if (active) setUnread(count) }).catch(() => undefined)
+    void notificationApi.list({ limit: 8 }).then((items) => { if (active) setNotifications(items) }).catch(() => undefined)
 
     // 2. Socket: catch-up + live updates.
     const token = getAccessToken()
@@ -136,7 +143,7 @@ export function useWorkspaceData(user: AuthUser | null, chatActive = false): Wor
 
     const loadCatchup = () => {
       void catchupActivity(socket, 20).then((events) => {
-        if (active && events.length) setFeed((prev) => (prev.length ? prev : events))
+        if (active && events.length) setFeed((prev) => mergeActivity(prev, events, FEED_CAP))
       })
     }
     // Join every accessible project room so chat messages arrive workspace-wide.
@@ -156,7 +163,6 @@ export function useWorkspaceData(user: AuthUser | null, chatActive = false): Wor
     socket.on('notification:unread-count', ({ count }) => { if (active) setUnread(count) })
     socket.on('notification:new', (n) => {
       if (!active) return
-      setUnread((prev) => prev + 1)
       setNotifications((prev) => dedupePrepend(prev, n, NOTIF_CAP))
     })
     socket.on('notification:read', ({ id }) => {

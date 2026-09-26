@@ -13,11 +13,13 @@ export interface ModuleItem {
   id: string
   title: string
   meta: string
+  searchText?: string
   tone: string
   value: string
   kind?: 'task' | 'notification' | 'project' | 'activity' | 'team'
   status?: string
   isRead?: boolean
+  date?: string | null
 }
 
 export interface ModuleData {
@@ -39,10 +41,10 @@ const projectStatusLabel = (s: string): string =>
 const fmtDate = (d: string | null): string => {
   if (!d) return 'No due date'
   const dt = new Date(d)
-  return Number.isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return Number.isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 }
 
-export function useModuleData(view: string, user: AuthUser | null): ModuleData {
+export function useModuleData(view: string, user: AuthUser | null, search = ''): ModuleData {
   const [items, setItems] = useState<ModuleItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -64,31 +66,35 @@ export function useModuleData(view: string, user: AuthUser | null): ModuleData {
 
     const load = async (): Promise<ModuleItem[]> => {
       if (view === 'Projects') {
-        const rows = await projectApi.list()
+        const rows = await projectApi.list({ search: search.trim() || undefined })
         return rows.map((p) => ({
           id: p.id,
           title: p.name,
           meta: `${p.client?.company || p.client?.name || 'Client'} · ${p._count?.tasks ?? 0} tasks${p.createdBy ? ` · ${p.createdBy.name}` : ''}`,
+          searchText: p.description ?? '',
           tone: toneFor(p.id),
           value: projectStatusLabel(p.status),
           kind: 'project',
+          date: p.createdAt,
         }))
       }
       if (view === 'Tasks') {
-        const rows = await taskApi.list()
+        const rows = await taskApi.list({ search: search.trim() || undefined })
         return rows.map((t) => ({
           id: t.id,
           title: t.title,
           meta: `${t.project.name} · ${priorityLabel(t.priority)} · Due ${fmtDate(t.dueDate)}${t.isOverdue ? ' · Overdue' : ''}`,
+          searchText: t.description ?? '',
           tone: STATUS_TONE[t.status] || 'blue',
           value: statusLabel(t.status),
           kind: 'task',
           status: t.status,
+          date: t.dueDate ?? t.createdAt,
         }))
       }
       if (view === 'Activity') {
         const rows = await activityApi.list({ limit: 50 })
-        return rows.map((a) => ({ id: a.id, title: activityLine(a), meta: relativeTime(a.createdAt), tone: toneFor(a.id), value: 'Live', kind: 'activity' }))
+        return rows.map((a) => ({ id: a.id, title: activityLine(a), meta: relativeTime(a.createdAt), tone: toneFor(a.id), value: 'Live', kind: 'activity', date: a.createdAt }))
       }
       if (view === 'Notifications') {
         const rows = await notificationApi.list({ limit: 50 })
@@ -100,6 +106,7 @@ export function useModuleData(view: string, user: AuthUser | null): ModuleData {
           value: n.isRead ? 'Read' : 'Unread',
           kind: 'notification',
           isRead: n.isRead,
+          date: n.createdAt,
         }))
       }
       if (view === 'Team') {
@@ -112,7 +119,7 @@ export function useModuleData(view: string, user: AuthUser | null): ModuleData {
         return rows
           .filter((t) => t.dueDate)
           .sort((a, b) => (a.dueDate! < b.dueDate! ? -1 : 1))
-          .map((t) => ({ id: t.id, title: t.title, meta: `${fmtDate(t.dueDate)} · ${t.project.name}`, tone: PRIORITY_TONE[t.priority] || 'blue', value: priorityLabel(t.priority), kind: 'task', status: t.status }))
+          .map((t) => ({ id: t.id, title: t.title, meta: `${fmtDate(t.dueDate)} · ${t.project.name}`, tone: PRIORITY_TONE[t.priority] || 'blue', value: priorityLabel(t.priority), kind: 'task', status: t.status, date: t.dueDate }))
       }
       return []
     }
@@ -122,7 +129,7 @@ export function useModuleData(view: string, user: AuthUser | null): ModuleData {
       .catch((e: unknown) => { if (active) { setError(e instanceof Error ? e.message : 'Failed to load.'); setLoading(false) } })
 
     return () => { active = false }
-  }, [view, user, role, supported, tick])
+  }, [view, user, role, supported, tick, search])
 
   return { items, loading, error, supported, refetch }
 }

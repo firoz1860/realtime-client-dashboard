@@ -20,6 +20,8 @@ export function ChatView({ user, onToast }: { user: AuthUser | null; onToast: (m
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const sendingRef = useRef(false)
   const socketRef = useRef<AppSocket | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const activeIdRef = useRef('')
@@ -67,20 +69,26 @@ export function ChatView({ user, onToast }: { user: AuthUser | null; onToast: (m
     if (!activeId) { setMessages([]); return }
     let active = true
     setLoading(true)
+    setError(null)
     messageApi.list(activeId)
-      .then((ms) => { if (active) { setMessages(ms); setLoading(false) } })
-      .catch(() => { if (active) { setMessages([]); setLoading(false) } })
+      .then((ms) => { if (active) {
+        setMessages((prev) => [...new Map([...ms, ...prev.filter((m) => m.projectId === activeId)].map((m) => [m.id, m])).values()]
+          .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)))
+        setLoading(false)
+      } })
+      .catch((cause: unknown) => { if (active) { setMessages([]); setError(cause instanceof Error ? cause.message : 'Could not load messages.'); setLoading(false) } })
     const socket = socketRef.current
     const join = () => socket?.emit('project:join', activeId, () => undefined)
     if (socket) { if (socket.connected) join(); else socket.once('connect', join) }
-    return () => { active = false; socket?.emit('project:leave', activeId) }
+    return () => { active = false; socket?.off('connect', join); socket?.emit('project:leave', activeId) }
   }, [activeId])
 
   useEffect(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight }, [messages])
 
   const send = async () => {
     const text = draft.trim()
-    if (!text || !activeId) return
+    if (!text || !activeId || sendingRef.current) return
+    sendingRef.current = true
     setSending(true)
     try {
       const msg = await messageApi.create(activeId, text)
@@ -88,7 +96,7 @@ export function ChatView({ user, onToast }: { user: AuthUser | null; onToast: (m
       setDraft('')
     } catch (e) {
       onToast(e instanceof Error ? e.message : 'Could not send message.')
-    } finally { setSending(false) }
+    } finally { sendingRef.current = false; setSending(false) }
   }
 
   const filtered = channels.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()))
@@ -110,6 +118,7 @@ export function ChatView({ user, onToast }: { user: AuthUser | null; onToast: (m
         <div className="conversation-head"><div><h3>{activeChannel?.name ?? 'Select a channel'}</h3><p>Real-time project chat</p></div></div>
         <div className="message-list" ref={listRef}>
           {loading ? <div className="activity-empty-row">Loading messages…</div>
+            : error ? <div className="activity-empty-row" role="alert">{error}</div>
             : messages.length ? messages.map((m) => (
               <div className="chat-message" key={m.id}>
                 <span className={`member-avatar ${toneFor(m.sender?.id ?? m.id)}`}>{initials(m.sender?.name ?? '?')}</span>
