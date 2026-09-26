@@ -202,7 +202,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .intro-actions > .primary-button { min-width: 150px; }
 @media (max-width: 900px) { .page-intro { gap: 18px; }.intro-actions { flex-wrap: wrap; max-width: 330px; }.intro-actions > .primary-button { flex: 1 1 150px; } }
 @media (max-width: 760px) { .page-intro { min-height: 0; gap: 16px; margin-bottom: 22px; }.page-intro h1 { font-size: 30px; }.intro-actions { width: 100%; max-width: none; padding: 0; }.intro-actions > * { flex: 1 1 0; }.intro-actions > .primary-button { min-width: 0; } }
-@media (prefers-color-scheme: dark) { :root { --surface: #20263a; --surface-soft: #1a2031; --ink: #eef1fa; --muted: #9fa8bf; --border-soft: #3b435c; --accent-soft: #30375b; } .page-intro h1 { color: var(--ink); }.range-control, .filter-button { color: #e3e7f2; background: var(--surface); border-color: var(--border-soft); }.range-control:hover, .filter-button:hover { background: var(--accent-soft); border-color: #6672c8; } }
+
 
 /* Sticky glass navbar: stays in place while workspace content scrolls beneath it. */
 .topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; width: calc(100% - 48px); min-width: 0; box-sizing: border-box; padding: 0 24px; }
@@ -232,7 +232,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .topbar { position: sticky; top: 12px; z-index: 70; height: 64px; margin: 12px 24px 0; padding: 0 24px; box-sizing: border-box; border: 1px solid rgba(255,255,255,.82); border-radius: 18px; background: rgba(255,255,255,.72); box-shadow: 0 16px 34px rgba(40,52,92,.12), inset 0 1px rgba(255,255,255,.9); backdrop-filter: blur(24px) saturate(150%); -webkit-backdrop-filter: blur(24px) saturate(150%); }
 .content-wrap { padding-top: 28px; }
 .topbar { align-items: center; justify-content: center; gap: 24px; overflow: visible; }.topbar > .breadcrumbs { flex: 1 1 0; min-width: 0; max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.topbar > .top-actions { flex: 0 1 auto; min-width: 0; max-width: 50%; overflow: visible; }.top-actions { gap: 14px; min-width: 0; }.topbar .header-search { width: min(212px, 22vw); max-width: 100%; }
-@media (prefers-color-scheme: dark) { .topbar { background: rgba(27,34,53,.78); border-color: rgba(165,178,231,.2); box-shadow: 0 18px 40px rgba(0,0,0,.24), inset 0 1px rgba(220,226,255,.1); } }
+
 @media (max-width: 760px) { .topbar { top: 8px; height: 58px; margin: 8px 12px 0; padding: 0 16px; border-radius: 15px; gap: 10px; } .topbar > .breadcrumbs { flex: 1 1 auto; max-width: none; }.topbar > .top-actions { flex: 0 0 auto; max-width: none; }.topbar .header-search { display: none; }.content-wrap { padding-top: 22px; } }
 
 /* Toolbar and shell alignment: one status control, clear navbar separation. */
@@ -270,7 +270,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .date-presets button.selected::after { content: '✓'; position: absolute; top: 5px; right: 6px; color: #6873ee; font-size: 9px; }
 .date-menu-footer .primary-button { box-shadow: 0 7px 16px #5965ef2e; }
 @media (max-width: 600px) { .date-range-menu, .status-menu { position: fixed; top: 82px; left: 16px; right: 16px; width: auto; max-height: calc(100vh - 100px); overflow: auto; } .overview-date-wrap .date-range-menu { top: 50%; left: 16px; right: 16px; width: auto; transform: translateY(-50%); } }
-@media (prefers-color-scheme: dark) { .date-range-menu, .status-menu, .workspace-menu { color: #e8ebf5; background: rgba(27,31,48,.96); border-color: #424963; box-shadow: 0 20px 48px #0008, inset 0 1px #667091; }.date-menu-head { border-color: #3a4057; }.date-menu-head strong { color: #edf0f8; }.date-presets button, .date-inputs input { color: #d9ddef; background: #20263a; border-color: #404861; }.date-inputs label, .date-menu-footer > span { color: #9fa8bf; }.date-menu-footer { border-color: #3a4057; }.status-menu button, .workspace-menu button { color: #b9c0d3; }.status-menu button:hover, .status-menu button.selected, .workspace-menu button:hover { color: #aeb6ff; background: #30375b; }.status-menu button span { color: #b8c0da; background: #39415d; } }
+
 
 
 .content-wrap.module-mode > .stats-grid, .content-wrap.module-mode > .dashboard-grid, .content-wrap.module-mode > .lower-grid { display: none; }
@@ -330,7 +330,7 @@ html, body { background: radial-gradient(circle at 80% 0%, #e9edff 0, transparen
 .date-range-menu, .status-menu, .workspace-menu, .project-modal, .toast, .notification-popover, .profile-menu, .global-results { background: rgba(255,255,255,.78); border: 1px solid rgba(255,255,255,.88); box-shadow: 0 30px 90px rgba(34,45,84,.26), inset 0 1px rgba(255,255,255,.95); backdrop-filter: blur(30px) saturate(155%); -webkit-backdrop-filter: blur(30px) saturate(155%); }
 .modal-backdrop { background: rgba(34,42,70,.28); backdrop-filter: blur(12px) saturate(115%); -webkit-backdrop-filter: blur(12px) saturate(115%); }.project-modal { border-radius: 24px; }.modal-head, .date-menu-head { border-color: var(--glass-line); }
 .project-modal input, .project-modal select, .date-inputs input { background: rgba(248,249,255,.72); border-color: rgba(126,137,183,.2); box-shadow: inset 0 1px rgba(255,255,255,.8); }
-@media (prefers-color-scheme: dark) { html, body { background: radial-gradient(circle at 80% 0%, #303966 0, transparent 38%), linear-gradient(135deg, #121727, #1a2031); } :root { --glass-bg: rgba(30,37,58,.62); --glass-border: rgba(157,169,220,.16); --glass-line: rgba(175,185,230,.16); --glass-shadow: 0 22px 60px rgba(0,0,0,.24), 0 3px 12px rgba(0,0,0,.12); } .sidebar, .topbar { background: rgba(26,32,50,.68); border-color: var(--glass-border); } .date-range-menu, .status-menu, .workspace-menu, .project-modal, .toast, .notification-popover, .profile-menu, .global-results { background: rgba(29,36,57,.84); border-color: rgba(171,184,239,.2); } .project-modal input, .project-modal select, .date-inputs input { color: #e7ebfa; background: rgba(21,27,44,.7); border-color: rgba(171,184,239,.18); } }
+
 @media (max-width: 760px) { .workspace-view, .stats-card, .chart-card, .activity-card, .deadline-card, .project-card, .team-card, .chat-panel { border-radius: 16px; } }
 
 /* AI-generated story card: an ambient motion preview that responds to scroll. */
@@ -485,9 +485,7 @@ html, body { min-height: 100%; overflow-x: hidden; overflow-y: auto; }
 .auth-seed-hint { display: block; margin-top: 14px; color: #8a90a6 !important; font-size: 9px !important; line-height: 1.55 !important; }
 .auth-submit:disabled { opacity: .6; cursor: progress; }
 .activity-empty-row { padding: 22px 4px; color: #9aa2b0; font-size: 11px; text-align: center; }
-@media (prefers-color-scheme: dark) {
-  .auth-error { color: #ffb4b4; border-color: #6b3a3a; background: rgba(120,50,50,.25); }
-}
+
 
 /* ================================================================
    STICKY TOPBAR FIX (added, authoritative — kept last).
@@ -580,19 +578,6 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; height
 .header-search input::placeholder { color: #99a1b2 !important; }
 .icon-button { color: #5f6982 !important; }
 
-/* Dark mode: keep surfaces opaque enough for contrast */
-@media (prefers-color-scheme: dark) {
-  .dashboard-shell > .sidebar { background: rgba(24, 30, 48, .9) !important; border-color: rgba(171,184,239,.18) !important; }
-  .dashboard-shell .topbar { background: rgba(24, 30, 48, .88) !important; border-color: rgba(171,184,239,.18) !important; }
-  .workspace-view, .panel, .kpi-card, .settings-panel, .account-card, .chat-layout,
-  .date-range-menu, .status-menu, .workspace-menu, .project-modal, .toast,
-  .notification-popover, .profile-menu, .global-results { background: rgba(27, 33, 52, .95) !important; }
-  .sidebar .nav-item, .sidebar .brand, .sidebar .workspace-switcher strong, .sidebar .profile strong { color: #e7ebfa !important; }
-  .sidebar .nav-item > svg { color: #aeb6d6 !important; }
-  .topbar .breadcrumbs strong { color: #eef1fa !important; }
-  .header-search input { color: #eef1fa !important; }
-}
-
 /* ---- Dynamic module controls (added) ---- */
 .task-status-select {
   margin-left: auto;
@@ -612,10 +597,7 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; height
 .task-status-select:focus-visible { outline: 3px solid rgba(89,101,237,.28); outline-offset: 2px; }
 .workspace-item.is-unread { border-color: #ffdcbb !important; background: #fffaf3 !important; }
 .workspace-item.is-unread .workspace-item-copy strong { color: #2a3244; }
-@media (prefers-color-scheme: dark) {
-  .task-status-select { color: #d9ddef; background: #20263a; border-color: #404861; }
-  .workspace-item.is-unread { background: rgba(120,80,40,.22) !important; border-color: #6b5333 !important; }
-}
+
 
 /* ---- Live notification popover (added) ---- */
 .notification-popover button.notification-item { width: 100%; border: 0; border-top: 1px solid #f0f1f5; background: transparent; text-align: left; cursor: pointer; font: inherit; }
@@ -625,10 +607,7 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; height
 .notification-popover button.notification-item strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 230px; }
 .popover-markall { border: 0; background: transparent; color: #5965ef; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
 .notification-empty { padding: 16px 4px; color: #9aa2b0; font-size: 11px; text-align: center; }
-@media (prefers-color-scheme: dark) {
-  .notification-popover button.notification-item.unread { background: rgba(120,80,40,.22); }
-  .notification-popover button.notification-item:hover { background: rgba(89,101,237,.14); }
-}
+
 
 /* ================================================================
    MOBILE POLISH (added, authoritative).
@@ -705,4 +684,68 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; height
 
 .inline-client-form .primary-button {
   justify-self: start;
+}
+
+/* The workspace uses one light palette on every device. The previous automatic
+   dark styles changed panel backgrounds without changing all of their text. */
+.dashboard-shell {
+  color-scheme: light;
+  background: #f4f6fb !important;
+}
+.dashboard-shell > .sidebar { z-index: 140 !important; }
+
+/* Keep the navigation and workspace as separate surfaces. */
+.dashboard-shell > .main-area {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.dashboard-shell .content-wrap {
+  background: #fff;
+  border: 1px solid #e8ebf2;
+  border-radius: 18px;
+  box-shadow: 0 14px 36px rgba(35, 47, 78, .06);
+  padding: clamp(22px, 3vw, 40px);
+}
+.dashboard-shell .content-wrap .page-intro h1,
+.dashboard-shell .workspace-view-head h2,
+.dashboard-shell .conversation-head h3,
+.dashboard-shell .workspace-empty strong {
+  color: #252d41;
+}
+.dashboard-shell .workspace-empty span { color: #69758a; }
+
+.dashboard-shell .topbar {
+  background: #293146 !important;
+  border: 1px solid #3d4760 !important;
+  box-shadow: 0 14px 32px rgba(32, 42, 67, .16) !important;
+  color: #f7f9ff;
+}
+.dashboard-shell .topbar .breadcrumbs { color: #aeb8cf; }
+.dashboard-shell .topbar .breadcrumbs span { color: #b4bdd2 !important; }
+.dashboard-shell .topbar .breadcrumbs strong { color: #f7f9ff !important; }
+.dashboard-shell .topbar .header-search {
+  background: #222a3d !important;
+  border-color: #48536d !important;
+  color: #b9c3d9 !important;
+  box-shadow: none;
+}
+.dashboard-shell .topbar .header-search input { color: #f7f9ff !important; }
+.dashboard-shell .topbar .header-search input::placeholder { color: #b6c0d5 !important; }
+.dashboard-shell .topbar .header-search kbd { color: #c4cce0; border-color: #58627a; }
+.dashboard-shell .topbar .icon-button,
+.dashboard-shell .topbar .user-button { color: #d8e0f3 !important; }
+.dashboard-shell .topbar .icon-button:hover,
+.dashboard-shell .topbar .user-button:hover { background: #39445e; }
+.dashboard-shell .topbar .header-divider { background: #59637b; }
+.dashboard-shell .topbar :is(.global-results, .notification-popover, .profile-menu) {
+  color: #293145;
+  background: #fff !important;
+  border-color: #e5e8f2;
+}
+
+@media (max-width: 768px) {
+  .dashboard-shell > .main-area { padding: 12px !important; gap: 12px; }
+  .dashboard-shell .topbar { flex-basis: 62px; border-radius: 14px !important; }
+  .dashboard-shell .content-wrap { padding: 22px 16px 30px; border-radius: 14px; }
 }
