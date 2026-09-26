@@ -32,5 +32,9 @@ export const authController = {
   me: async (req: Request, res: Response) => {
     if (!req.user) throw new AppError(401, 'AUTH_REQUIRED', 'Authentication is required.')
     res.json({ success: true, data: await authService.me(req.user.id) })
+  },
+  updateProfile: async (req: Request, res: Response) => {
+    if (!req.user) throw new AppError(401, 'AUTH_REQUIRED', 'Authentication is required.')
+    res.json({ success: true, data: await authService.updateProfile(req.user.id, req.body as { name: string }) })
   }
 }

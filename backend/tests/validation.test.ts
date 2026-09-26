@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { taskQuerySchema } from '../src/schemas/task.schema'
+import { updateProfileBodySchema } from '../src/schemas/auth.schema'
 
 describe('task query validation', () => {
   it('rejects inverted due-date ranges', () => {
@@ -37,4 +38,12 @@ describe('task query validation', () => {
     expect(taskQuerySchema.safeParse({ search: '  ' }).success).toBe(false)
   })
 
+})
+
+describe('profile validation', () => {
+  it('allows only a trimmed display name and rejects role or password updates', () => {
+    expect(updateProfileBodySchema.parse({ name: '  Firoz Ahmad  ' })).toEqual({ name: 'Firoz Ahmad' })
+    expect(updateProfileBodySchema.safeParse({ name: 'Firoz', role: 'ADMIN' }).success).toBe(false)
+    expect(updateProfileBodySchema.safeParse({ name: 'Firoz', password: 'new-password' }).success).toBe(false)
+  })
 })
