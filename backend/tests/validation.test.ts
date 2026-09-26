@@ -30,4 +30,11 @@ describe('task query validation', () => {
     expect(taskQuerySchema.safeParse({ dueDateFrom: '2026-02-30' }).success).toBe(false)
   })
 
+  it('accepts a bounded task search term and rejects empty searches', () => {
+    const parsed = taskQuerySchema.safeParse({ search: '  launch  ' })
+    expect(parsed.success).toBe(true)
+    if (parsed.success) expect(parsed.data.search).toBe('launch')
+    expect(taskQuerySchema.safeParse({ search: '  ' }).success).toBe(false)
+  })
+
 })

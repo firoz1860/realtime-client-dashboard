@@ -63,7 +63,7 @@ export const projectApi = {
 }
 
 export const taskApi = {
-  list: (params: { status?: string; priority?: string; projectId?: string; dueDateFrom?: string; dueDateTo?: string } = {}) => {
+  list: (params: { status?: string; priority?: string; projectId?: string; dueDateFrom?: string; dueDateTo?: string; search?: string } = {}) => {
     const q = new URLSearchParams({ limit: '100' })
     Object.entries(params).forEach(([k, v]) => { if (v) q.set(k, String(v)) })
     return api.request<Task[]>(`/tasks?${q.toString()}`)
@@ -76,10 +76,14 @@ export const taskApi = {
 
 export const clientApi = {
   list: () => api.request<Client[]>('/clients?limit=100'),
+  create: (body: { name: string; email: string; company?: string }) =>
+    api.request<Client>('/clients', { method: 'POST', body }),
 }
 
 export const userApi = {
   developers: () => api.request<TeamUser[]>('/users/developers'),
+  create: (body: { name: string; email: string; password: string; role: 'ADMIN' | 'PROJECT_MANAGER' | 'DEVELOPER' }) =>
+    api.request<TeamUser>('/users', { method: 'POST', body }),
   list: (params: { role?: string } = {}) => {
     const q = new URLSearchParams({ limit: '100' })
     if (params.role) q.set('role', params.role)

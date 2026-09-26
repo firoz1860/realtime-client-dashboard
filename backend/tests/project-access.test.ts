@@ -5,7 +5,9 @@ const mocks = vi.hoisted(() => ({
   findById: vi.fn(),
   findScopedById: vi.fn(),
   remove: vi.fn(),
-  list: vi.fn()
+  list: vi.fn(),
+  transaction: vi.fn(),
+  emit: vi.fn()
 }))
 
 vi.mock('../src/repositories/project.repository', () => ({
@@ -18,8 +20,8 @@ vi.mock('../src/repositories/project.repository', () => ({
 }))
 vi.mock('../src/repositories/client.repository', () => ({ clientRepository: { findById: vi.fn() } }))
 vi.mock('../src/repositories/user.repository', () => ({ userRepository: { findById: vi.fn() } }))
-vi.mock('../src/lib/prisma', () => ({ prisma: { project: { findUnique: vi.fn() }, task: { count: vi.fn() } } }))
-vi.mock('../src/lib/events', () => ({ eventBus: { emit: vi.fn() } }))
+vi.mock('../src/lib/prisma', () => ({ prisma: { project: { findUnique: vi.fn() }, task: { count: vi.fn() }, $transaction: mocks.transaction } }))
+vi.mock('../src/lib/events', () => ({ eventBus: { emit: mocks.emit } }))
 
 import { projectService } from '../src/services/project.service'
 
@@ -48,5 +50,14 @@ describe('project service authorization', () => {
   it('denies developer project REST access in the service layer', async () => {
     await expect(projectService.get('project-1', developer)).rejects.toMatchObject({ statusCode: 403, code: 'FORBIDDEN' })
     expect(mocks.findScopedById).not.toHaveBeenCalled()
+  })
+
+  it('does not create activity for an unchanged project update', async () => {
+    const project = { id: 'project-1', name: 'Orbit', status: 'ACTIVE', description: null, clientId: 'client-1', createdById: pmA.id }
+    mocks.findById.mockResolvedValue(project)
+    const result = await projectService.update('project-1', pmA, { name: 'Orbit' })
+    expect(result).toEqual(project)
+    expect(mocks.transaction).not.toHaveBeenCalled()
+    expect(mocks.emit).not.toHaveBeenCalled()
   })
 })

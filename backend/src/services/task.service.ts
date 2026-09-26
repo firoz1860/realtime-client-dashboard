@@ -12,6 +12,7 @@ import { assertTaskAccess } from './policy.service'
 export type TaskFilters = {
   page: number
   limit: number
+  search?: string
   status?: TaskStatus
   priority?: TaskPriority
   dueDateFrom?: Date
@@ -192,6 +193,23 @@ export const taskService = {
 
       if (input.version !== undefined && input.version !== existing.version) {
         throw new AppError(409, 'STALE_TASK_VERSION', 'Task was changed by another request. Reload and try again.')
+      }
+
+      const isUnchanged = Object.entries(input)
+        .filter(([key]) => key !== 'version')
+        .every(([key, value]) => {
+          const previous = existing[key as keyof typeof existing]
+          return value instanceof Date && previous instanceof Date
+            ? value.getTime() === previous.getTime()
+            : value === previous
+        })
+      if (isUnchanged) return {
+        task: existing,
+        activityId: undefined,
+        projectId: existing.projectId,
+        pmOwnerId: existing.project.createdById,
+        developerId: existing.assignedDeveloperId,
+        notificationIds: [] as Array<{ id: string; recipientId: string }>
       }
 
       const changedStatus = input.status !== undefined && input.status !== existing.status

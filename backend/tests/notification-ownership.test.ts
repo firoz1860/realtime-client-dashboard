@@ -44,4 +44,11 @@ describe('notification ownership', () => {
     expect(mocks.emit).toHaveBeenCalledWith('notificationRead', { notificationId: 'notification-1', recipientId: 'user-a' })
     expect(mocks.emit).toHaveBeenCalledWith('notificationsChanged', { recipientId: 'user-a' })
   })
+
+  it('does not emit duplicate events when a notification was already read', async () => {
+    mocks.findOwnedById.mockResolvedValue({ id: 'notification-1', recipientId: 'user-a', isRead: true })
+    await notificationService.markRead('notification-1', 'user-a')
+    expect(mocks.markRead).not.toHaveBeenCalled()
+    expect(mocks.emit).not.toHaveBeenCalled()
+  })
 })

@@ -321,9 +321,9 @@ This makes repeated executions idempotent. The job also removes expired refresh-
 Development default:
 
 ```env
-CLIENT_URL=http://localhost:5173
-CORS_ORIGIN=http://localhost:5173
-SOCKET_CORS_ORIGIN=http://localhost:5173
+CLIENT_URL=http://localhost:3000
+CORS_ORIGIN=http://localhost:3000
+SOCKET_CORS_ORIGIN=http://localhost:3000
 COOKIE_SAME_SITE=lax
 ```
 

@@ -32,7 +32,12 @@ export const projectRepository = {
       ...projectScope(input.user),
       ...(input.status ? { status: input.status } : {}),
       ...(input.clientId ? { clientId: input.clientId } : {}),
-      ...(input.search ? { name: { contains: input.search, mode: 'insensitive' } } : {})
+      ...(input.search ? { OR: [
+        { name: { contains: input.search, mode: 'insensitive' as const } },
+        { description: { contains: input.search, mode: 'insensitive' as const } },
+        { client: { name: { contains: input.search, mode: 'insensitive' as const } } },
+        { client: { company: { contains: input.search, mode: 'insensitive' as const } } }
+      ] } : {})
     }
     const [data, total] = await prisma.$transaction([
       prisma.project.findMany({ where, include: includeProject, orderBy: { createdAt: 'desc' }, skip: (input.page - 1) * input.limit, take: input.limit }),

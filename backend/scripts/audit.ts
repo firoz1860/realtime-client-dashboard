@@ -109,7 +109,7 @@ for (const file of scannedFiles) {
   if (/\bdebugger\b/.test(content)) failures.push(`debugger found: ${relative(root, file)}`)
   if (/console\.log\s*\(/.test(content)) failures.push(`console.log found: ${relative(root, file)}`)
   if (/\bFIXME\b/.test(content)) failures.push(`FIXME found: ${relative(root, file)}`)
-  if (/\bTODO\s*[:\-]/.test(content)) failures.push(`TODO marker found: ${relative(root, file)}`)
+  if (/\bTODO\s*[:-]/.test(content)) failures.push(`TODO marker found: ${relative(root, file)}`)
 }
 
 const auth = read('src/services/auth.service.ts')
