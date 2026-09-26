@@ -112,7 +112,7 @@ export function ChatView({ user, onToast }: { user: AuthUser | null; onToast: (m
             <span className={`channel-icon ${toneFor(c.id)}`}>{c.name.charAt(0).toUpperCase()}</span>
             <span><strong>{c.name}</strong><small>Project chat</small></span>
           </button>
-        )) : <div className="activity-empty-row">No channels available.</div>}
+        )) : <div className="activity-empty-row">{user ? 'No project channels available.' : 'Sign in to see your project channels.'}</div>}
       </div>
       <div className="chat-conversation">
         <div className="conversation-head"><div><h3>{activeChannel?.name ?? 'Select a channel'}</h3><p>Real-time project chat</p></div></div>
@@ -127,7 +127,7 @@ export function ChatView({ user, onToast }: { user: AuthUser | null; onToast: (m
                   <p>{m.body}</p>
                 </div>
               </div>
-            )) : <div className="activity-empty-row">No messages yet. Say hello 👋</div>}
+            )) : <div className="activity-empty-row">{activeId ? 'No messages yet. Say hello 👋' : 'Select a project channel to see messages.'}</div>}
         </div>
         <div className="chat-composer">
           <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send() } }} placeholder={activeChannel ? `Message ${activeChannel.name}…` : 'Select a channel first'} disabled={!activeId} aria-label="Message input" />
