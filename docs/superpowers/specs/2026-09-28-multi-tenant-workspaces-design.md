@@ -144,14 +144,44 @@ cross-tenant data-disclosure bug).
   `where.workspaceId` on every read/update/delete and sets `data.workspaceId` on every create.
   **If no context is set, it throws.** Fail-closed is the entire point: a forgotten context
   must break loudly in a test, never silently return everything.
-- **`prismaSystem`** — the raw client, unscoped. Permitted **only** in:
-  - `auth.service.ts` — register (creating the workspace itself), login, refresh
-  - `requireAuth`'s token verification path
-  - the three `SUPER_ADMIN` workspace endpoints
-  - `prisma/seed.ts`
+- **`prismaSystem`** — the raw client, unscoped, and **exported from its own module**
+  `src/lib/prisma-system.ts` rather than from `src/lib/prisma.ts`. Keeping it in a separate
+  module means the *import path itself* is the signal, and it can be restricted by path.
 
-`prismaSystem` is a named, greppable escape hatch. A lint rule (or a CI grep) restricts its
-import to that allowlist, so adding a new usage is a visible, reviewable act.
+### 4.2.1 `prismaSystem` is allowlisted and CI-enforced
+
+Unscoped access must be impossible to acquire casually. Three layers, all mechanical:
+
+**1. Closed allowlist.** `src/lib/prisma-system.ts` may be imported only by:
+
+| File | Why it needs unscoped access |
+|---|---|
+| `src/services/auth.service.ts` | `register` creates the workspace (no context exists yet); `login` resolves a user before a workspace is known; `refresh` runs with no access token (§3.3) |
+| `src/middlewares/auth.middleware.ts` | verifies the token before context can be established (§5.1 steps 1–2) |
+| `src/services/workspace.service.ts` | the three `SUPER_ADMIN` metadata endpoints (§5.4) |
+| `prisma/seed.ts` | seeding runs outside any request |
+| `src/lib/prisma.ts` | wraps it to build the scoped client |
+
+**2. ESLint `no-restricted-imports` zone.** `eslint.config.js` forbids importing
+`./lib/prisma-system` repo-wide, with `overrides` re-permitting exactly the five files above.
+`npm run lint` already runs inside `npm run verify`, so an unapproved import **fails CI**, not
+review.
+
+**3. An importer-set test.** A test greps the source tree for imports of `prisma-system` and
+asserts the resulting file set equals the allowlist. ESLint config can be edited; a test that
+pins the *expected* set makes widening it a deliberate, visible diff (§8, case 12).
+
+**Why this cannot become a general bypass.** Obtaining unscoped access requires editing
+`eslint.config.js` **and** the importer-set test in the same commit. Neither is something a
+developer does by accident while adding a feature, and both appear in review as explicit
+"I am widening tenant-bypass access" changes.
+
+**Residual risk, stated plainly.** Any file on the allowlist can still run an unscoped query
+over tenant data. The five entries are therefore kept small and are the files a security review
+should read first. `auth.service.ts` is the largest of them and the only one handling
+caller-supplied input, so §8 case 13 asserts its unscoped reads are confined to `User` and
+`RefreshToken` lookups by id/email — never `Project`, `Task`, `Client`, `Message`,
+`ActivityLog` or `Notification`.
 
 ### 4.3 Extension sketch
 
@@ -199,18 +229,60 @@ the densest.
 ### 4.4 What the filter cannot catch
 
 A `where` filter stops you reading another tenant's row. It does **not** stop you *writing a
-foreign key that points at one*. Three places accept a caller-supplied id and need an explicit
-check:
+foreign key that points at one*.
 
 ```ts
 assertSameWorkspace(entity: { workspaceId: string }): void   // throws 404 NOT_FOUND
 ```
 
-1. `POST /api/projects` — `clientId`, and `createdById` when an `ADMIN` assigns an owner
-2. `POST /api/projects/:id/tasks` and `PATCH /api/tasks/:id` — `assignedDeveloperId`
-3. `PATCH /api/users/:id` — the target user
+**Complete audit of caller-supplied `*Id` fields.** Every request schema was enumerated; there
+are nine such fields in total, split into five writes that need the check and four filters that
+do not.
 
-These return **404, not 403**: a 403 confirms the record exists, which is itself a disclosure.
+#### Writes — `assertSameWorkspace` required (5)
+
+| # | Endpoint | Schema | Field |
+|---|---|---|---|
+| 1 | `POST /api/projects` | `project.schema.ts:8` | `clientId` (required) |
+| 2 | `POST /api/projects` | `project.schema.ts:10` | `createdById` (optional; `ADMIN` assigns an owner) |
+| 3 | `PATCH /api/projects/:id` | `project.schema.ts:16` | `clientId` (optional) — **reassigning a project to another tenant's client** |
+| 4 | `POST /api/projects/:projectId/tasks` | `task.schema.ts:35` | `assignedDeveloperId` |
+| 5 | `PATCH /api/tasks/:id` | `task.schema.ts:44` | `assignedDeveloperId` |
+
+Rows 3 and 5 were **missed in the first draft of this spec**, which listed only the two create
+paths plus `PATCH /api/users/:id`. Both update paths are equally exploitable: the scoped `where`
+confirms you may modify *your* project or task, then writes a foreign key pointing at another
+workspace's client or developer.
+
+`PATCH /api/users/:id` needs **no** explicit check after all — the target is a path parameter,
+so the scoped `where` on `User` already yields no row for a foreign id, producing a clean 404.
+The first draft listed it unnecessarily.
+
+#### Query filters — no check needed (4)
+
+| Endpoint | Schema | Field |
+|---|---|---|
+| `GET /api/projects` | `project.schema.ts:22` | `clientId` |
+| `GET /api/tasks` | `task.schema.ts:57` | `projectId` |
+| `GET /api/tasks` | `task.schema.ts:58` | `assignedDeveloperId` |
+| `GET /api/activity` | `activity.schema.ts:5-6` | `projectId`, `taskId` |
+
+These are **narrowing** filters composed with the injected `where.workspaceId`. Passing a
+foreign id yields an empty result, never a foreign row, and reveals nothing — an empty list is
+indistinguishable from "you have no matching records". Adding `assertSameWorkspace` here would
+be redundant *and* harmful: it would turn an empty result into a 404 that confirms the id
+exists somewhere on the platform. **Do not guard these.**
+
+#### Return code
+
+All five checks return **404, not 403**. A 403 confirms the record exists, which is itself a
+cross-tenant disclosure.
+
+#### Keeping this audit true
+
+New `*Id` fields will be added to schemas later. §8 case 11 pins the surface: a test enumerates
+every `*Id` field across `src/schemas/*.ts` and asserts each is either in the writes table above
+(and covered by a check) or in the filters table. A new unclassified field fails the test.
 
 ---
 
@@ -225,7 +297,8 @@ user is itself a tenant-scoped query.
 Order of operations in `requireAuth`:
 
 1. Verify the token signature (no DB).
-2. Reject the token if the `ws` claim is absent — see §7.3.
+2. Reject the token if the `ws` claim is absent, with **401** `TOKEN_MISSING_WORKSPACE` — see
+   §7.4 for why the status must be 401 and how the client recovers silently.
 3. `runInTenant({ workspaceId: claims.ws }, …)`.
 4. Load the user through the **scoped** `prisma`. Because the query is filtered by the
    workspace from the token, this also proves the user genuinely belongs to that workspace — a
@@ -344,12 +417,63 @@ Safe on a running system; nothing reads the column yet.
 - Add the `@@index([workspaceId, …])` indexes from §3.2
 - Add the `user_workspace_role_ck` check constraint from §3.4
 
-**Deployment note.** Existing access tokens carry no `ws` claim, so all sessions invalidate at
-deploy: users re-login once. Refresh cookies remain valid (the refresh path is untenanted), so
-`POST /api/auth/refresh` reissues a token *with* the claim. Consequence: after phase 3 deploys,
-the `requireAuth` rejection in §5.1 step 2 must return **401** (not 403) so the frontend's
-existing single-flight refresh-and-retry in `lib/api.ts:111-118` recovers the session
-automatically without a visible logout.
+### 7.4 Deploy-time session recovery — verified against the source
+
+Existing access tokens carry no `ws` claim. The claim is therefore a **silent, automatic**
+re-issue rather than a forced logout. Each link in that chain was checked against the code, not
+assumed:
+
+**1. Refresh can reconstruct the workspace with no access token and no `ws` claim.**
+`auth.service.ts:94` already loads the user alongside the session:
+
+```ts
+const current = await tx.refreshToken.findUnique({
+  where: { id: payload.sid },
+  include: { user: true },          // <- the user row is already here
+})
+```
+
+So `current.user.workspaceId` is in hand. The refresh token itself needs **no** new claim — the
+workspace is derived from the persisted user row, which the phase-2 backfill guarantees is
+populated. This query runs through `prismaSystem` (§3.3: `RefreshToken` is untenanted, and no
+context exists on this path).
+
+`signAccessToken(result.id, result.role)` at `auth.service.ts:129` gains the workspace argument
+and emits the `ws` claim. `login` at `:83` and `register` at `:74` do the same via `issueSession`.
+
+**2. A missing claim must be 401, and the client already recovers from 401.**
+`lib/api.ts:111-118`:
+
+```ts
+if (res.status === 401 && auth && retryOn401) {
+  const refreshed = await refreshOnce()          // single-flight
+  if (refreshed) return request<T>(path, { ...options, retryOn401: false })
+  accessToken = null
+  onUnauthenticated?.()
+}
+```
+
+The chain is therefore: stale token → `requireAuth` 401 `TOKEN_MISSING_WORKSPACE` →
+`refreshOnce()` → refresh reads `user.workspaceId` → new token with `ws` → original request
+retried once. The retry sets `retryOn401: false`, so a still-failing request cannot loop.
+`refreshOnce()` is single-flight (`api.ts:83-90`), so concurrent in-flight requests trigger
+exactly one refresh.
+
+**3. Returning 403 would break this.** `api.ts` only refreshes on 401. A 403 would fall through
+to `throw new ApiError`, surfacing an error toast and leaving the user stuck until they manually
+reload — and a reload would not help, because `bootstrap()` calls the same refresh path but only
+*after* `hasSessionHint()`, so the visible failure would look like an outage. **The rejection
+must be 401.**
+
+**4. Socket reconnection.** `lib/socket.ts:34-42` already handles `connect_error` by calling
+`api.me()` and re-connecting with the refreshed token, so sockets recover through the same
+mechanism.
+
+**Residual case.** If the refresh cookie is also expired (older than
+`REFRESH_TOKEN_EXPIRES_IN`, default 7d), refresh fails, `onUnauthenticated()` fires, and the
+user logs in again — correct behaviour, unrelated to this migration.
+
+Covered by §8 case 10.
 
 A documented down-path exists for each phase; phase 2's is a no-op (the backfill is idempotent).
 
@@ -379,7 +503,29 @@ a developer:
 8. **Suspension** — login to a `SUSPENDED` workspace returns 403 `WORKSPACE_SUSPENDED`.
 9. **Realtime** — a W1 socket cannot join a W2 project room; `presence.count(W1)` is unaffected
    by W2 connections; a W1 admin does not receive W2 admin broadcasts.
-10. **Migration** — against a database seeded with pre-migration data, all three phases run and
+10. **Deploy-time session recovery (§7.4)** — the exact upgrade scenario, end to end:
+    a. Mint an access token **without** a `ws` claim (a pre-migration token).
+    b. Call a protected endpoint with it → expect **401** and code `TOKEN_MISSING_WORKSPACE`.
+       Assert the status is 401 and *not* 403, since `lib/api.ts` only refreshes on 401.
+    c. `POST /api/auth/refresh` with the still-valid refresh cookie → expect 200, and assert
+       the returned access token **does** carry a `ws` claim equal to the user's `workspaceId`.
+    d. Retry the original request with the new token → expect 200.
+    e. Assert the reissued token's `ws` matches the workspace the user was backfilled into.
+    f. Negative: an **expired** refresh cookie → 401 and no new token (no silent recovery).
+    g. Concurrency: fire five parallel protected requests with the stale token and assert
+       `POST /api/auth/refresh` was called exactly **once** (single-flight, `api.ts:83-90`).
+11. **FK-injection surface is complete (§4.4)** — enumerate every `*Id` field across
+    `src/schemas/*.ts` and assert each appears either in the writes table (with a check wired)
+    or the filters table. An unclassified new field fails. Plus live attempts: W1 reassigning a
+    project to W2's `clientId` (case 3) and W1 assigning a W2 developer on `PATCH /api/tasks/:id`
+    (case 5) both return 404.
+12. **`prismaSystem` importer allowlist (§4.2.1)** — grep the tree for imports of
+    `lib/prisma-system` and assert the file set equals the five allowlisted paths exactly.
+    Widening it must require editing this test.
+13. **`auth.service.ts` unscoped reads stay narrow (§4.2.1)** — assert its `prismaSystem` usage
+    touches only `User`, `RefreshToken` and `Workspace` (creation), never `Project`, `Task`,
+    `Client`, `Message`, `ActivityLog` or `Notification`.
+14. **Migration** — against a database seeded with pre-migration data, all three phases run and
     every row lands in the default workspace with no NULLs remaining.
 
 Existing tests keep passing. Those that mock `prisma` need the tenant context stubbed, or the
@@ -391,10 +537,47 @@ mock re-pointed at `prismaSystem`.
 
 Deliberately minimal — the isolation work is the backend.
 
-1. **Signup** — `components/auth-dialog.tsx` gains a required "Company name" field.
-   *Note:* that component is currently **imported by nothing**; `app/page.tsx` renders its own
-   inline auth form. The plan must either wire `AuthDialog` in or add the field to the inline
-   form, not assume the former.
+### 9.1 Which auth UI gets the Company name field — DECIDED
+
+**Decision: extend the inline `.auth-preview` form in `app/page.tsx`. Do not wire up
+`components/auth-dialog.tsx`, and delete that file.**
+
+**Evidence for the decision.** Three facts, each verified against the source:
+
+1. **There is no signup UI in the rendered app at all.** `app/page.tsx` contains only
+   `authMode === 'login'`, `setAuthMode('guest')` and `handleLogin`. `api.register`
+   (`lib/api.ts:156`) and `POST /api/auth/register` both exist and work — nothing calls them
+   from the UI. So this is not "add a field to signup"; it is **build the signup form**.
+2. **`auth-dialog.tsx` is imported by nothing.** It is dead, untracked code.
+3. **`auth-dialog.tsx` is unstyled.** 14 of its 21 class names have **zero** rules in
+   `globals.css`: `.overlay`, `.auth-dialog`, `.dialog-sub`, `.form`, `.field`, `.input-affix`,
+   `.strength`, `.btn-primary`, `.btn-lg`, `.btn-block`, `.dialog-close`, `.link-muted`,
+   `.dialog-foot`, `.dev-hint`, `.spin`. Wiring it in would render a visually broken dialog —
+   the same defect already found in the chat panel, where 9 of 11 classes had no rules.
+
+**Why not reuse it anyway?** It does carry useful logic — password strength meter,
+confirm-password, a login/signup segmented toggle, `autoComplete` hints, `role="dialog"` with
+Esc handling. Adopting it would mean authoring ~15 new CSS rules first. Extending the inline
+form instead needs **no new CSS**, because `.auth-preview` and its inputs are already styled and
+proven working in the browser. Strength meter and confirm-password are dropped as non-essential:
+the backend already enforces the password rules (`auth.schema.ts:11-16`) and `lib/api.ts:130-135`
+already surfaces field-level validation messages.
+
+**Concretely, in `app/page.tsx`:**
+
+- `authMode` widens from `'login' | 'guest' | null` to `'login' | 'signup' | 'guest' | null`.
+- The `.auth-preview` form renders two extra inputs when `authMode === 'signup'`:
+  **Full name** (`autoComplete="name"`) and **Company name** (`autoComplete="organization"`,
+  2–100 chars, the new `Workspace.name`).
+- A `.segmented` toggle switches Log in / Create account, shown only when
+  `authConfig().signupEnabled` is true (`lib/auth.tsx:50` already fetches this).
+- `handleSignup` calls the existing `register()` from `useAuth()` (`lib/auth.tsx:68`), which
+  needs `companyName` threaded through `api.register` → `AuthContextValue.register`.
+- Submit button text and the dialog heading switch on mode.
+
+**Cleanup:** delete `components/auth-dialog.tsx`. Keeping an unstyled, unimported second auth
+implementation guarantees future confusion about which form is live. If its password-strength UI
+is wanted later, it should be reintroduced deliberately with the CSS it needs.
 2. **Workspace name** — `app/page.tsx:428` hardcodes `Orbit Studio` and avatar `O`. `GET
    /api/auth/me` returns `workspace: { id, name, slug }`, and the sidebar switcher renders it.
    This is the model whose absence made that string un-dynamic.
@@ -418,11 +601,13 @@ audit logging of `SUPER_ADMIN` actions.
 | Risk | Severity | Mitigation |
 |---|---|---|
 | A tenant model is missed in `TENANT_MODELS` → silent cross-tenant reads | **Critical** | The set is derived from the 7 models with a `workspaceId` column; test case 1 covers all 7 explicitly; a schema-drift test asserts every model having `workspaceId` appears in the set |
-| `prismaSystem` spreads beyond its allowlist | High | Named export, CI grep / lint rule restricting importers |
+| `prismaSystem` spreads beyond its allowlist → general tenant bypass | High | Own module, ESLint `no-restricted-imports` zone failing `npm run lint` in CI, plus an importer-set test (§4.2.1, tests 12–13). Widening requires editing both the lint config and the test in one visible diff |
+| A caller-supplied `*Id` added later reintroduces FK injection | High | Schema-enumeration test asserts every `*Id` field is classified as a guarded write or a safe filter (§4.4, test 11) |
+| Deploy-time 401→refresh recovery fails and reads as an outage | Medium | Verified against `auth.service.ts:94` and `lib/api.ts:111-118`; rejection pinned to 401; test 10 covers the full chain including single-flight and expired-cookie cases |
 | Phase 3 runs before phase 2 completes on a large table | High | Phase 2 verifies zero NULLs per table before phase 3 is applied |
 | `findUnique` conversions to `findFirst` change behaviour | Medium | Enumerated during planning; typecheck plus the existing 44 unit tests |
 | Missing composite indexes degrade every list query | Medium | Indexes ship in phase 3; `EXPLAIN` spot-check on `Project` and `Task` |
-| Forced re-login at deploy reads as an outage | Low | §7.3 returns 401 so the existing refresh-and-retry path recovers silently |
+| Someone re-adds an unstyled second auth form | Low | §9.1 deletes `auth-dialog.tsx` and records why the inline form is the live one |
 
 **Largest risk overall:** the blast radius is the whole backend — 82 query call sites across the
 7 tenant models. The extension is what keeps those call sites untouched; the migration and the
@@ -433,12 +618,18 @@ auth-context wiring are where this can still go wrong.
 ## 12. Suggested sequence
 
 1. Schema + the three migrations (§3, §7) — no behaviour change yet
-2. Tenant context + extension + fail-closed test (§4, test 5)
-3. Auth: `ws` claim, `requireAuth`, signup with `companyName` (§5.1–5.3)
-4. `assertSameWorkspace` on the three FK write paths (§4.4)
-5. `SUPER_ADMIN` role, the three endpoints, and the tenant-route guard (§5.4)
-6. Realtime: room prefixes and partitioned presence (§6)
-7. Integration isolation suite (§8)
-8. Frontend (§9)
+2. Tenant context, the extension, `prisma-system.ts` + its ESLint zone, fail-closed test
+   (§4, §4.2.1, tests 5, 12, 13)
+3. Auth: `ws` claim, `requireAuth` 401 path, refresh reissue, signup with `companyName`
+   (§5.1–5.3, §7.4, test 10)
+4. `assertSameWorkspace` on the **five** FK write paths + the schema-enumeration test
+   (§4.4, test 11)
+5. `SUPER_ADMIN` role, the three metadata endpoints, and the tenant-route guard (§5.4, test 7)
+6. Realtime: workspace-prefixed rooms and partitioned presence (§6, test 9)
+7. Integration isolation suite in full (§8)
+8. Frontend: signup form in `app/page.tsx`, delete `auth-dialog.tsx`, dynamic workspace name
+   (§9)
 
-Steps 1–2 are inert on their own; the system changes behaviour at step 3.
+Steps 1–2 are inert on their own; the system changes behaviour at step 3. Step 4 must not be
+deferred past step 3 — once the extension is live, the five unguarded FK paths are the only
+remaining cross-tenant write vector.
