@@ -284,6 +284,41 @@ New `*Id` fields will be added to schemas later. §8 case 11 pins the surface: a
 every `*Id` field across `src/schemas/*.ts` and asserts each is either in the writes table above
 (and covered by a check) or in the filters table. A new unclassified field fails the test.
 
+### 4.5 Dashboard aggregates — the third discovered leak
+
+`src/services/dashboard.service.ts` (48 lines) builds the admin KPIs from **entirely unscoped**
+aggregates. Verbatim from the source:
+
+```ts
+prisma.project.count(),                                              // :12  no `where` at all
+prisma.task.groupBy({ by: ['status'], _count: { _all: true } }),     // :13  no `where` at all
+prisma.task.count({ where: { isOverdue: true, status: { not: DONE } } }),  // :14  no tenant filter
+…
+return { totalProjects, taskStatus, overdueCount,
+         onlineUsers: presenceService.count(), globalActivity }      // :17
+```
+
+Post-change, all four admin KPIs — *Total projects, Total tasks, Overdue tasks, Online now* —
+would report **platform-wide** figures. A company would learn its competitors' project and task
+volumes from its own dashboard.
+
+The fix splits in two, and the distinction matters for the plan:
+
+**Covered by the extension, but must be verified.** Lines 12–14 operate on `Project` and `Task`,
+so §4.3 injects `where.workspaceId` automatically. However `count`, `groupBy` and `aggregate`
+are precisely the operations §4.3 flags as needing individual handling — `groupBy` accepts
+`where` but not `data`, and a naive implementation that only patches `create`/`findMany` would
+leave these three lines leaking. **Test 3 must assert these specific KPI numbers equal the
+workspace's own totals**, not merely that lists are filtered.
+
+**Not covered by the extension.** `presenceService.count()` at line 17 is an in-memory map, not
+a Prisma call, so no query extension can scope it. It requires the §6.2 partitioning, and
+`dashboard.service.ts` must pass the current workspace id into it.
+
+The PM and developer paths (`:25-42`) are already scoped by ownership (`taskWhere`,
+`createdById`), so they inherit correct behaviour once the extension is live — but they are
+still covered by test 3 rather than assumed.
+
 ---
 
 ## 5. Authentication and provisioning
@@ -492,7 +527,12 @@ a developer:
    update / delete of a W2 record gets 404. Parameterised: 7 models × 3 operations.
 2. **Admin cannot cross** — W1 `ADMIN` cannot reach a W2 project. This is the test that
    retires the `policy.service.ts:6` `ADMIN`-bypass concern.
-3. **Enumeration** — W1 list endpoints never include W2 ids; counts equal W1's own totals.
+3. **Enumeration and aggregates (§4.5)** — W1 list endpoints never include W2 ids. Explicitly
+    assert the four admin KPIs from `dashboard.service.ts` equal W1's own totals: `totalProjects`,
+    the `taskStatus` `groupBy` buckets, `overdueCount`, and `onlineUsers`. These must be checked
+    as numbers, not merely "the list is filtered" — `count`/`groupBy`/`aggregate` are the
+    operations most likely to be missed by the extension (§4.3), and `onlineUsers` is not a
+    Prisma call at all.
 4. **Foreign-key injection** — W1 cannot create a project with W2's `clientId`, nor assign a
    W2 developer to a W1 task (§4.4).
 5. **Fail-closed** — a scoped query executed outside `runInTenant` throws.
