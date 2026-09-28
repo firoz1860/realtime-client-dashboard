@@ -14,7 +14,7 @@ export const authController = {
     res.json({ success: true, data: { signupEnabled: env.ALLOW_PUBLIC_SIGNUP } })
   },
   register: async (req: Request, res: Response) => {
-    const body = req.body as { name: string; email: string; password: string }
+    const body = req.body as { name: string; email: string; password: string; companyName: string }
     const result = await authService.register(body)
     setRefreshCookie(res, result.refreshToken)
     res.status(201).json({ success: true, data: { accessToken: result.accessToken, user: result.user } })

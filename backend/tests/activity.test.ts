@@ -11,7 +11,7 @@ import { activityService } from '../src/services/activity.service'
 describe('recent activity', () => {
   it('delegates to role-scoped repository with requested catch-up limit', async () => {
     recent.mockResolvedValue([{ id: 'activity-1' }])
-    const user = { id: 'dev-1', email: 'dev@test.com', role: Role.DEVELOPER, isActive: true }
+    const user = { id: 'dev-1', email: 'dev@test.com', role: Role.DEVELOPER, isActive: true, workspaceId: 'ws-test' }
     const result = await activityService.recent(user, 20)
     expect(result).toEqual([{ id: 'activity-1' }])
     expect(recent).toHaveBeenCalledWith(user, 20)

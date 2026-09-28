@@ -12,7 +12,8 @@ export const registerBodySchema = z.strictObject({
     .min(8, 'Password must be at least 8 characters.')
     .max(128)
     .regex(/[A-Za-z]/, 'Password must contain a letter.')
-    .regex(/[0-9]/, 'Password must contain a number.')
+    .regex(/[0-9]/, 'Password must contain a number.'),
+  companyName: z.string().trim().min(2, 'Enter your company name.').max(100)
 })
 
 export const updateProfileBodySchema = z.strictObject({

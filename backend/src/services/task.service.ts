@@ -1,6 +1,7 @@
 import { ActivityEventType, NotificationType, Prisma, Role, TaskPriority, TaskStatus } from '@prisma/client'
 import { eventBus } from '../lib/events'
 import { prisma } from '../lib/prisma'
+import { requireWorkspaceId } from '../lib/tenant-context'
 import { projectRepository } from '../repositories/project.repository'
 import { taskInclude, taskRepository } from '../repositories/task.repository'
 import { userRepository } from '../repositories/user.repository'
@@ -51,8 +52,16 @@ const validateDeveloper = async (developerId: string | null | undefined): Promis
   }
 }
 
+/**
+ * The transaction client handed to `prisma.$transaction`. Derived from the
+ * extended client rather than written as `Prisma.TransactionClient`, because the
+ * tenant extension changes that type — and deriving it keeps tenant filtering
+ * active inside transactions instead of widening it away.
+ */
+type TenantTransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+
 const validateDeveloperInTransaction = async (
-  tx: Prisma.TransactionClient,
+  tx: TenantTransactionClient,
   developerId: string | null | undefined
 ): Promise<void> => {
   if (!developerId) return
@@ -120,6 +129,7 @@ export const taskService = {
     const result = await prisma.$transaction(async (tx) => {
       const task = await tx.task.create({
         data: {
+          workspaceId: requireWorkspaceId(),
           projectId,
           title: input.title,
           description: input.description,
@@ -133,6 +143,7 @@ export const taskService = {
       })
       const activity = await tx.activityLog.create({
         data: {
+          workspaceId: requireWorkspaceId(),
           taskId: task.id,
           projectId,
           actorId: user.id,
@@ -145,6 +156,7 @@ export const taskService = {
       if (task.assignedDeveloperId) {
         const notification = await tx.notification.create({
           data: {
+            workspaceId: requireWorkspaceId(),
             recipientId: task.assignedDeveloperId,
             actorId: user.id,
             taskId: task.id,
@@ -233,6 +245,7 @@ export const taskService = {
       if (changedStatus) {
         const activity = await tx.activityLog.create({
           data: {
+            workspaceId: requireWorkspaceId(),
             taskId: id,
             projectId: existing.projectId,
             actorId: user.id,
@@ -246,6 +259,7 @@ export const taskService = {
       } else if (changedAssignee) {
         const activity = await tx.activityLog.create({
           data: {
+            workspaceId: requireWorkspaceId(),
             taskId: id,
             projectId: existing.projectId,
             actorId: user.id,
@@ -257,6 +271,7 @@ export const taskService = {
       } else {
         const activity = await tx.activityLog.create({
           data: {
+            workspaceId: requireWorkspaceId(),
             taskId: id,
             projectId: existing.projectId,
             actorId: user.id,
@@ -271,6 +286,7 @@ export const taskService = {
       if (changedAssignee && updated.assignedDeveloperId && updated.assignedDeveloperId !== user.id) {
         const notification = await tx.notification.create({
           data: {
+            workspaceId: requireWorkspaceId(),
             recipientId: updated.assignedDeveloperId,
             actorId: user.id,
             taskId: id,
@@ -284,6 +300,7 @@ export const taskService = {
       if (changedStatus && updated.status === TaskStatus.IN_REVIEW && existing.project.createdById !== user.id) {
         const notification = await tx.notification.create({
           data: {
+            workspaceId: requireWorkspaceId(),
             recipientId: existing.project.createdById,
             actorId: user.id,
             taskId: id,
@@ -302,6 +319,7 @@ export const taskService = {
       ) {
         const notification = await tx.notification.create({
           data: {
+            workspaceId: requireWorkspaceId(),
             recipientId: updated.assignedDeveloperId,
             actorId: user.id,
             taskId: id,

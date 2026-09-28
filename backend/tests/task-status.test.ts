@@ -19,6 +19,7 @@ vi.mock('../src/repositories/task.repository', () => ({
 }))
 vi.mock('../src/repositories/project.repository', () => ({ projectRepository: { findById: mocks.projectFind } }))
 
+import { runInTenant } from '../src/lib/tenant-context'
 import { taskService } from '../src/services/task.service'
 
 describe('task status transaction', () => {
@@ -40,7 +41,7 @@ describe('task status transaction', () => {
       notification: { create: vi.fn() }
     }
     mocks.transaction.mockImplementation(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx))
-    const user = { id: 'dev-1', email: 'dev@test.com', role: Role.DEVELOPER, isActive: true }
+    const user = { id: 'dev-1', email: 'dev@test.com', role: Role.DEVELOPER, isActive: true, workspaceId: 'ws-test' }
     const result = await taskService.update('task-1', user, { status: TaskStatus.DONE })
     expect(result.version).toBe(3)
     expect(tx.task.updateMany).not.toHaveBeenCalled()
@@ -63,7 +64,7 @@ describe('task status transaction', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       project: { id: 'project-1', name: 'Project', createdById: 'pm-1', createdBy: { id: 'pm-1', name: 'PM', email: 'pm@test.com' }, client: { id: 'client-1', name: 'Client', company: 'Co' } },
-      assignedDeveloper: { id: 'dev-1', name: 'Dev', email: 'dev@test.com', isActive: true }
+      assignedDeveloper: { id: 'dev-1', name: 'Dev', email: 'dev@test.com', isActive: true, workspaceId: 'ws-test' }
     }
     const updated = { ...existing, status: TaskStatus.IN_REVIEW, version: 3 }
     const tx = {
@@ -77,8 +78,11 @@ describe('task status transaction', () => {
     }
     mocks.transaction.mockImplementation(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx))
 
-    const user = { id: 'dev-1', email: 'dev@test.com', role: Role.DEVELOPER, isActive: true }
-    const result = await taskService.update('task-1', user, { status: TaskStatus.IN_REVIEW, version: 2 })
+    const user = { id: 'dev-1', email: 'dev@test.com', role: Role.DEVELOPER, isActive: true, workspaceId: 'ws-test' }
+    // taskService writes activity/notification rows, which now take workspaceId
+    // from the tenant context, so the call must run inside a scope.
+    const result = await runInTenant({ workspaceId: 'ws-test-1' }, () =>
+      taskService.update('task-1', user, { status: TaskStatus.IN_REVIEW, version: 2 }))
 
     expect(result.status).toBe(TaskStatus.IN_REVIEW)
     expect(tx.activityLog.create).toHaveBeenCalledOnce()

@@ -10,9 +10,9 @@ const commonVerify = {
   algorithms: ['HS256'] as Algorithm[]
 }
 
-export const signAccessToken = (userId: string, role: Role): string =>
+export const signAccessToken = (userId: string, role: Role, workspaceId: string | null): string =>
   jwt.sign(
-    { type: 'access', role },
+    { type: 'access', role, ws: workspaceId },
     env.JWT_ACCESS_SECRET,
     {
       subject: userId,
@@ -42,7 +42,8 @@ export const verifyAccessToken = (token: string): AccessTokenPayload => {
     if (typeof payload === 'string' || payload.type !== 'access' || !payload.sub || !payload.role) {
       throw new Error('Invalid access token payload')
     }
-    return { sub: payload.sub, type: 'access', role: payload.role as Role }
+    const ws = typeof payload.ws === 'string' ? payload.ws : null
+    return { sub: payload.sub, type: 'access', role: payload.role as Role, ws }
   } catch (error) {
     if (error instanceof TokenExpiredError) {
       throw new AppError(401, 'ACCESS_TOKEN_EXPIRED', 'Access token has expired.')

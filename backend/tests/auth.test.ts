@@ -25,7 +25,7 @@ vi.mock('../src/repositories/refresh-token.repository', () => ({
     revokeByHash: mocks.revokeByHash
   }
 }))
-vi.mock('../src/lib/prisma', () => ({ prisma: { $transaction: mocks.transaction } }))
+vi.mock('../src/lib/prisma-system', () => ({ prismaSystem: { $transaction: mocks.transaction, workspace: { findUnique: vi.fn() } } }))
 
 import { authService } from '../src/services/auth.service'
 import { hashToken } from '../src/utils/hash'
@@ -104,7 +104,7 @@ describe('auth service', () => {
 
   it('updates only the authenticated user’s display name without returning credentials', async () => {
     const id = randomUUID()
-    mocks.updateUser.mockResolvedValue({ id, name: 'Updated Name', email: 'person@test.com', role: Role.DEVELOPER, isActive: true })
+    mocks.updateUser.mockResolvedValue({ id, name: 'Updated Name', email: 'person@test.com', role: Role.DEVELOPER, isActive: true, workspaceId: 'ws-test' })
     const result = await authService.updateProfile(id, { name: 'Updated Name' })
     expect(mocks.updateUser).toHaveBeenCalledWith(id, { name: 'Updated Name' })
     expect(result).not.toHaveProperty('passwordHash')

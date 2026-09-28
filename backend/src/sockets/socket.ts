@@ -60,7 +60,7 @@ const authenticateSocket = async (socket: AppSocket): Promise<void> => {
   const payload = verifyAccessToken(token)
   const user = await userRepository.findById(payload.sub)
   if (!user || !user.isActive) throw new Error('Account unavailable')
-  socket.data.user = { id: user.id, email: user.email, role: user.role, isActive: user.isActive }
+  socket.data.user = { id: user.id, email: user.email, role: user.role, isActive: user.isActive, workspaceId: user.workspaceId }
 }
 
 const installDomainEventForwarding = (io: AppServer): void => {

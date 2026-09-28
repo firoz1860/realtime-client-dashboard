@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma'
+import { requireWorkspaceId } from '../lib/tenant-context'
 
 export const messageInclude = {
   sender: { select: { id: true, name: true, role: true } }
@@ -25,5 +26,10 @@ export const messageRepository = {
   },
 
   create: (data: { projectId: string; senderId: string; body: string }) =>
-    prisma.message.create({ data, include: messageInclude })
+    // workspaceId comes from the request's tenant context, never the caller, so
+    // a message cannot be written into another workspace by passing a field.
+    prisma.message.create({
+      data: { ...data, workspaceId: requireWorkspaceId() },
+      include: messageInclude
+    })
 }

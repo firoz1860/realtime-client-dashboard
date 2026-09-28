@@ -2,11 +2,11 @@ import { Role } from '@prisma/client'
 import { describe, expect, it } from 'vitest'
 import { assertProjectManageAccess, assertTaskAccess } from '../src/services/policy.service'
 
-const admin = { id: 'admin', email: 'a@test.com', role: Role.ADMIN, isActive: true }
-const pmA = { id: 'pm-a', email: 'pma@test.com', role: Role.PROJECT_MANAGER, isActive: true }
-const pmB = { id: 'pm-b', email: 'pmb@test.com', role: Role.PROJECT_MANAGER, isActive: true }
-const devA = { id: 'dev-a', email: 'da@test.com', role: Role.DEVELOPER, isActive: true }
-const devB = { id: 'dev-b', email: 'db@test.com', role: Role.DEVELOPER, isActive: true }
+const admin = { id: 'admin', email: 'a@test.com', role: Role.ADMIN, isActive: true, workspaceId: 'ws-test' }
+const pmA = { id: 'pm-a', email: 'pma@test.com', role: Role.PROJECT_MANAGER, isActive: true, workspaceId: 'ws-test' }
+const pmB = { id: 'pm-b', email: 'pmb@test.com', role: Role.PROJECT_MANAGER, isActive: true, workspaceId: 'ws-test' }
+const devA = { id: 'dev-a', email: 'da@test.com', role: Role.DEVELOPER, isActive: true, workspaceId: 'ws-test' }
+const devB = { id: 'dev-b', email: 'db@test.com', role: Role.DEVELOPER, isActive: true, workspaceId: 'ws-test' }
 
 describe('resource authorization', () => {
   it('allows admin to manage any project', () => {

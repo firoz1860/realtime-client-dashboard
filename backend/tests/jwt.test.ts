@@ -6,7 +6,7 @@ import { signAccessToken, signRefreshToken, verifyAccessToken, verifyRefreshToke
 
 describe('JWT strategy', () => {
   it('signs and verifies access token type and role', () => {
-    const token = signAccessToken('00000000-0000-0000-0000-000000000001', Role.ADMIN)
+    const token = signAccessToken('00000000-0000-0000-0000-000000000001', Role.ADMIN, 'ws-1')
     const payload = verifyAccessToken(token)
     expect(payload.type).toBe('access')
     expect(payload.role).toBe(Role.ADMIN)

@@ -8,9 +8,38 @@ datasource db {
 }
 
 enum Role {
+  // Platform oversight. Has no workspace and cannot read tenant business
+  // data — see docs/superpowers/specs/2026-09-28-multi-tenant-workspaces-design.md §5.4
+  SUPER_ADMIN
   ADMIN
   PROJECT_MANAGER
   DEVELOPER
+}
+
+enum WorkspaceStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+/// One company using Orbit. Every tenant record belongs to exactly one
+/// workspace and nothing crosses the boundary (spec §1).
+model Workspace {
+  id        String          @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String          @unique
+  status    WorkspaceStatus @default(ACTIVE)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  users         User[]
+  clients       Client[]
+  projects      Project[]
+  tasks         Task[]
+  activities    ActivityLog[]
+  notifications Notification[]
+  messages      Message[]
+
+  @@index([status])
 }
 
 enum ProjectStatus {
@@ -57,8 +86,12 @@ model User {
   passwordHash          String
   role                  Role
   isActive              Boolean        @default(true)
+  // Nullable only so SUPER_ADMIN rows can exist without a workspace. The real
+  // invariant is enforced by the user_workspace_role_ck check constraint (spec §3.4).
+  workspaceId           String?        @db.Uuid
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
+  workspace             Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   refreshTokens         RefreshToken[]
   projectsCreated       Project[]      @relation("ProjectCreator")
   tasksAssigned         Task[]         @relation("TaskAssignee")
@@ -68,6 +101,8 @@ model User {
   messages              Message[]      @relation("MessageSender")
 
   @@index([role, isActive])
+  @@index([workspaceId])
+  @@index([workspaceId, role, isActive])
 }
 
 model RefreshToken {
@@ -86,20 +121,25 @@ model RefreshToken {
 }
 
 model Client {
-  id        String    @id @default(uuid()) @db.Uuid
-  name      String
-  email     String
-  company   String?
-  phone     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  projects  Project[]
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @db.Uuid
+  name        String
+  email       String
+  company     String?
+  phone       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projects    Project[]
 
   @@index([email])
+  @@index([workspaceId])
+  @@index([workspaceId, email])
 }
 
 model Project {
   id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @db.Uuid
   name        String
   description String?
   clientId    String        @db.Uuid
@@ -107,6 +147,7 @@ model Project {
   status      ProjectStatus @default(PLANNING)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   client      Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
   createdBy   User          @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
   tasks       Task[]
@@ -117,10 +158,14 @@ model Project {
   @@index([createdById])
   @@index([clientId])
   @@index([createdById, status])
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, createdById])
 }
 
 model Task {
   id                  String       @id @default(uuid()) @db.Uuid
+  workspaceId         String       @db.Uuid
   projectId           String       @db.Uuid
   title               String
   description         String?
@@ -132,6 +177,7 @@ model Task {
   version             Int          @default(0)
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
+  workspace           Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project             Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assignedDeveloper   User?        @relation("TaskAssignee", fields: [assignedDeveloperId], references: [id], onDelete: SetNull)
   activities          ActivityLog[]
@@ -145,10 +191,16 @@ model Task {
   @@index([projectId, status])
   @@index([assignedDeveloperId, status])
   @@index([isOverdue, dueDate])
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, assignedDeveloperId])
+  @@index([workspaceId, isOverdue, dueDate])
+  @@index([workspaceId, dueDate])
 }
 
 model ActivityLog {
-  id         String            @id @default(uuid()) @db.Uuid
+  id          String           @id @default(uuid()) @db.Uuid
+  workspaceId String           @db.Uuid
   taskId     String?           @db.Uuid
   projectId  String            @db.Uuid
   actorId    String            @db.Uuid
@@ -158,6 +210,7 @@ model ActivityLog {
   message    String?
   metadata   Json?
   createdAt  DateTime          @default(now())
+  workspace  Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   task       Task?             @relation(fields: [taskId], references: [id], onDelete: Cascade)
   project    Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   actor      User              @relation("ActivityActor", fields: [actorId], references: [id], onDelete: Restrict)
@@ -168,10 +221,13 @@ model ActivityLog {
   @@index([createdAt])
   @@index([projectId, createdAt])
   @@index([taskId, createdAt])
+  @@index([workspaceId])
+  @@index([workspaceId, createdAt])
 }
 
 model Notification {
   id          String           @id @default(uuid()) @db.Uuid
+  workspaceId String           @db.Uuid
   recipientId String           @db.Uuid
   actorId     String?          @db.Uuid
   taskId      String?          @db.Uuid
@@ -181,6 +237,7 @@ model Notification {
   isRead      Boolean          @default(false)
   createdAt   DateTime         @default(now())
   readAt      DateTime?
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   recipient   User             @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
   actor       User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
   task        Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -190,17 +247,23 @@ model Notification {
   @@index([isRead])
   @@index([createdAt])
   @@index([recipientId, isRead, createdAt])
+  @@index([workspaceId])
+  @@index([workspaceId, recipientId, isRead, createdAt])
 }
 
 model Message {
-  id        String   @id @default(uuid()) @db.Uuid
-  projectId String   @db.Uuid
-  senderId  String   @db.Uuid
-  body      String
-  createdAt DateTime @default(now())
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  sender    User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  id          String    @id @default(uuid()) @db.Uuid
+  workspaceId String    @db.Uuid
+  projectId   String    @db.Uuid
+  senderId    String    @db.Uuid
+  body        String
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sender      User      @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([projectId, createdAt])
   @@index([senderId])
+  @@index([workspaceId])
+  @@index([workspaceId, projectId, createdAt])
 }

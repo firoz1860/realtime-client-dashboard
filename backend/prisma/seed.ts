@@ -21,12 +21,20 @@ async function main() {
   await prisma.client.deleteMany()
   await prisma.refreshToken.deleteMany()
   await prisma.user.deleteMany()
+  await prisma.workspace.deleteMany()
 
   const [adminHash, managerHash, developerHash] = await Promise.all([
     bcrypt.hash('Admin123!', 12),
     bcrypt.hash('Manager123!', 12),
     bcrypt.hash('Developer123!', 12)
   ])
+
+  // Every seeded record belongs to a workspace. A second, near-empty workspace
+  // is created at the end so tenant isolation is observable in the UI without
+  // having to sign up twice.
+  const workspace = await prisma.workspace.create({
+    data: { name: 'Orbit Studio', slug: 'orbit-studio' }
+  })
 
   const admin = await prisma.user.create({
     data: { name: 'Aarav Admin', email: 'admin@dashboard.test', passwordHash: adminHash, role: Role.ADMIN }
@@ -46,15 +54,15 @@ async function main() {
   }
 
   const clients = await Promise.all([
-    prisma.client.create({ data: { name: 'Meera Shah', email: 'meera@novaworks.test', company: 'NovaWorks', phone: '+91-9000000001' } }),
-    prisma.client.create({ data: { name: 'Rohan Sen', email: 'rohan@orbitlabs.test', company: 'Orbit Labs', phone: '+91-9000000002' } }),
-    prisma.client.create({ data: { name: 'Zoya Khan', email: 'zoya@brightpath.test', company: 'BrightPath', phone: '+91-9000000003' } })
+    prisma.client.create({ data: { workspaceId: workspace.id, name: 'Meera Shah', email: 'meera@novaworks.test', company: 'NovaWorks', phone: '+91-9000000001' } }),
+    prisma.client.create({ data: { workspaceId: workspace.id, name: 'Rohan Sen', email: 'rohan@orbitlabs.test', company: 'Orbit Labs', phone: '+91-9000000002' } }),
+    prisma.client.create({ data: { workspaceId: workspace.id, name: 'Zoya Khan', email: 'zoya@brightpath.test', company: 'BrightPath', phone: '+91-9000000003' } })
   ])
 
   const projects = await Promise.all([
-    prisma.project.create({ data: { name: 'Nova Client Portal', description: 'Client onboarding and project visibility portal', clientId: clients[0]!.id, createdById: pm1.id, status: ProjectStatus.ACTIVE } }),
-    prisma.project.create({ data: { name: 'Orbit Analytics', description: 'Operational analytics dashboard', clientId: clients[1]!.id, createdById: pm1.id, status: ProjectStatus.ACTIVE } }),
-    prisma.project.create({ data: { name: 'BrightPath Mobile API', description: 'Backend services for the mobile product', clientId: clients[2]!.id, createdById: pm2.id, status: ProjectStatus.PLANNING } })
+    prisma.project.create({ data: { workspaceId: workspace.id, name: 'Nova Client Portal', description: 'Client onboarding and project visibility portal', clientId: clients[0]!.id, createdById: pm1.id, status: ProjectStatus.ACTIVE } }),
+    prisma.project.create({ data: { workspaceId: workspace.id, name: 'Orbit Analytics', description: 'Operational analytics dashboard', clientId: clients[1]!.id, createdById: pm1.id, status: ProjectStatus.ACTIVE } }),
+    prisma.project.create({ data: { workspaceId: workspace.id, name: 'BrightPath Mobile API', description: 'Backend services for the mobile product', clientId: clients[2]!.id, createdById: pm2.id, status: ProjectStatus.PLANNING } })
   ])
 
   const statuses = [TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.IN_REVIEW, TaskStatus.DONE]
@@ -67,6 +75,7 @@ async function main() {
       const dueDate = i < 2 ? daysFromNow(-2 - i) : daysFromNow(2 + i)
       tasks.push(await prisma.task.create({
         data: {
+          workspaceId: workspace.id,
           projectId: projects[p]!.id,
           title: `Project ${p + 1} Task ${i + 1}`,
           description: `Seed task ${i + 1} for ${projects[p]!.name}`,
@@ -86,6 +95,7 @@ async function main() {
     const actorId = project.createdById
     await prisma.activityLog.create({
       data: {
+        workspaceId: workspace.id,
         taskId: task.id,
         projectId: task.projectId,
         actorId,
@@ -101,6 +111,7 @@ async function main() {
     if (!task.assignedDeveloperId) continue
     await prisma.notification.create({
       data: {
+        workspaceId: workspace.id,
         recipientId: task.assignedDeveloperId,
         actorId: admin.id,
         taskId: task.id,

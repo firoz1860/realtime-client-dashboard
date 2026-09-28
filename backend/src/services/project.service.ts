@@ -1,5 +1,6 @@
 import { ActivityEventType, Role, TaskStatus, type ProjectStatus } from '@prisma/client'
 import { prisma } from '../lib/prisma'
+import { requireWorkspaceId } from '../lib/tenant-context'
 import { clientRepository } from '../repositories/client.repository'
 import { projectRepository } from '../repositories/project.repository'
 import { userRepository } from '../repositories/user.repository'
@@ -60,6 +61,7 @@ export const projectService = {
     const created = await prisma.$transaction(async (tx) => {
       const project = await tx.project.create({
         data: {
+          workspaceId: requireWorkspaceId(),
           name: input.name,
           description: input.description,
           clientId: input.clientId,
@@ -69,7 +71,7 @@ export const projectService = {
         include: { client: true, createdBy: { select: { id: true, name: true, email: true, role: true } }, _count: { select: { tasks: true } } }
       })
       const activity = await tx.activityLog.create({
-        data: { projectId: project.id, actorId: user.id, eventType: ActivityEventType.PROJECT_CREATED, message: `Project ${project.name} created` }
+        data: { workspaceId: requireWorkspaceId(), projectId: project.id, actorId: user.id, eventType: ActivityEventType.PROJECT_CREATED, message: `Project ${project.name} created` }
       })
       return { project, activity }
     })
@@ -97,7 +99,7 @@ export const projectService = {
         include: { client: true, createdBy: { select: { id: true, name: true, email: true, role: true } }, _count: { select: { tasks: true } } }
       })
       const activity = await tx.activityLog.create({
-        data: { projectId: id, actorId: user.id, eventType: ActivityEventType.PROJECT_UPDATED, message: `Project ${project.name} updated` }
+        data: { workspaceId: requireWorkspaceId(), projectId: id, actorId: user.id, eventType: ActivityEventType.PROJECT_UPDATED, message: `Project ${project.name} updated` }
       })
       return { project, activity }
     })

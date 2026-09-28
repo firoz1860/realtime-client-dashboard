@@ -25,9 +25,9 @@ vi.mock('../src/lib/events', () => ({ eventBus: { emit: mocks.emit } }))
 
 import { projectService } from '../src/services/project.service'
 
-const pmA = { id: 'pm-a', email: 'a@test.com', role: Role.PROJECT_MANAGER, isActive: true }
-const pmB = { id: 'pm-b', email: 'b@test.com', role: Role.PROJECT_MANAGER, isActive: true }
-const developer = { id: 'dev-a', email: 'dev@test.com', role: Role.DEVELOPER, isActive: true }
+const pmA = { id: 'pm-a', email: 'a@test.com', role: Role.PROJECT_MANAGER, isActive: true, workspaceId: 'ws-test' }
+const pmB = { id: 'pm-b', email: 'b@test.com', role: Role.PROJECT_MANAGER, isActive: true, workspaceId: 'ws-test' }
+const developer = { id: 'dev-a', email: 'dev@test.com', role: Role.DEVELOPER, isActive: true, workspaceId: 'ws-test' }
 
 describe('project service authorization', () => {
   beforeEach(() => vi.clearAllMocks())

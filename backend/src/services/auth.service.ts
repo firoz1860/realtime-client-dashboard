@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
-import { Prisma, Role, type User } from '@prisma/client'
+import { Prisma, Role, WorkspaceStatus, type User } from '@prisma/client'
 import { env } from '../config/env'
-import { prisma } from '../lib/prisma'
+import { prismaSystem } from '../lib/prisma-system'
 import { refreshTokenRepository } from '../repositories/refresh-token.repository'
 import { userRepository } from '../repositories/user.repository'
 import { AppError } from '../utils/app-error'
@@ -10,6 +10,25 @@ import { durationToMs } from '../utils/duration'
 import { hashToken } from '../utils/hash'
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt'
 import { publicUser } from '../utils/sanitize'
+
+/** A url-safe, unique slug for a company name. Derived, never hardcoded. */
+const uniqueSlug = async (
+  tx: { workspace: { findUnique: (a: { where: { slug: string }; select: { id: true } }) => Promise<unknown> } },
+  companyName: string
+): Promise<string> => {
+  const base =
+    companyName
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40) || 'workspace'
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const candidate = attempt === 0 ? base : `${base}-${attempt + 1}`
+    if (!(await tx.workspace.findUnique({ where: { slug: candidate }, select: { id: true } }))) return candidate
+  }
+  return `${base}-${randomUUID().slice(0, 8)}`
+}
 
 const buildRefreshSession = (userId: string) => {
   const sessionId = randomUUID()
@@ -22,6 +41,18 @@ const buildRefreshSession = (userId: string) => {
   }
 }
 
+/** A suspended company cannot be signed into (spec §5.4). */
+const assertWorkspaceActive = async (workspaceId: string | null): Promise<void> => {
+  if (!workspaceId) return
+  const workspace = await prismaSystem.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { status: true }
+  })
+  if (workspace?.status === WorkspaceStatus.SUSPENDED) {
+    throw new AppError(403, 'WORKSPACE_SUSPENDED', 'This workspace is suspended. Contact your administrator.')
+  }
+}
+
 const issueSession = async (user: User) => {
   const session = buildRefreshSession(user.id)
   await refreshTokenRepository.create({
@@ -31,14 +62,14 @@ const issueSession = async (user: User) => {
     expiresAt: session.expiresAt
   })
   return {
-    accessToken: signAccessToken(user.id, user.role),
+    accessToken: signAccessToken(user.id, user.role, user.workspaceId),
     refreshToken: session.refreshToken,
     user: publicUser(user)
   }
 }
 
 export const authService = {
-  register: async (input: { name: string; email: string; password: string }) => {
+  register: async (input: { name: string; email: string; password: string; companyName: string }) => {
     if (!env.ALLOW_PUBLIC_SIGNUP) {
       throw new AppError(403, 'SIGNUP_DISABLED', 'Self-service signup is disabled. Ask your workspace administrator for an account.')
     }
@@ -46,18 +77,23 @@ export const authService = {
 
     let user: User
     try {
-      user = await prisma.$transaction(async (tx) => {
+      user = await prismaSystem.$transaction(async (tx) => {
         const existing = await tx.user.findUnique({ where: { email: input.email }, select: { id: true } })
         if (existing) throw new AppError(409, 'EMAIL_TAKEN', 'An account with this email already exists. Try logging in instead.')
-        // Bootstrap: the first account in an empty workspace becomes the admin.
-        const isFirstUser = (await tx.user.count()) === 0
+        // Signing up provisions a workspace and makes the signer its admin.
+        // There is no global-first-user special case any more: each account is
+        // the administrator of its own company, never of the whole platform.
+        const workspace = await tx.workspace.create({
+          data: { name: input.companyName, slug: await uniqueSlug(tx, input.companyName) }
+        })
         return tx.user.create({
           data: {
             name: input.name,
             email: input.email,
             passwordHash,
-            role: isFirstUser ? Role.ADMIN : Role[env.SIGNUP_DEFAULT_ROLE],
-            isActive: true
+            role: Role.ADMIN,
+            isActive: true,
+            workspaceId: workspace.id
           }
         })
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
@@ -80,6 +116,7 @@ export const authService = {
       throw new AppError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.')
     }
     if (!user.isActive) throw new AppError(403, 'ACCOUNT_INACTIVE', 'This account is inactive.')
+    await assertWorkspaceActive(user.workspaceId)
     return issueSession(user)
   },
 
@@ -90,7 +127,7 @@ export const authService = {
 
     let result: User
     try {
-      result = await prisma.$transaction(async (tx) => {
+      result = await prismaSystem.$transaction(async (tx) => {
         const current = await tx.refreshToken.findUnique({ where: { id: payload.sid }, include: { user: true } })
         if (!current || current.userId !== payload.sub || current.tokenHash !== presentedHash) {
           throw new AppError(401, 'INVALID_REFRESH_TOKEN', 'Refresh session is invalid.')
@@ -126,7 +163,7 @@ export const authService = {
     }
 
     return {
-      accessToken: signAccessToken(result.id, result.role),
+      accessToken: signAccessToken(result.id, result.role, result.workspaceId),
       refreshToken: nextSession.refreshToken,
       user: publicUser(result)
     }

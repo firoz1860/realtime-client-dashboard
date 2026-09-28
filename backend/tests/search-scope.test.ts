@@ -14,7 +14,7 @@ vi.mock('../src/lib/prisma', () => ({ prisma: {
 import { projectRepository } from '../src/repositories/project.repository'
 import { taskRepository } from '../src/repositories/task.repository'
 
-const user = { id: 'pm-1', email: 'pm@example.test', role: Role.PROJECT_MANAGER, isActive: true }
+const user = { id: 'pm-1', email: 'pm@example.test', role: Role.PROJECT_MANAGER, isActive: true, workspaceId: 'ws-test' }
 
 describe('role-scoped search', () => {
   it('searches project name, description and client while retaining manager scope', async () => {
