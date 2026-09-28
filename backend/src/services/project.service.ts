@@ -5,6 +5,7 @@ import { clientRepository } from '../repositories/client.repository'
 import { projectRepository } from '../repositories/project.repository'
 import { userRepository } from '../repositories/user.repository'
 import type { AuthUser } from '../types/auth'
+import { assertSameWorkspace } from './policy.service'
 import { AppError } from '../utils/app-error'
 import { paginationMeta } from '../utils/pagination'
 import { eventBus } from '../lib/events'
@@ -17,6 +18,7 @@ const resolveOwnerId = async (user: AuthUser, requestedOwnerId?: string): Promis
   if (!owner || !owner.isActive || owner.role !== Role.PROJECT_MANAGER) {
     throw new AppError(422, 'INVALID_PROJECT_OWNER', 'Project owner must be an active project manager.')
   }
+  assertSameWorkspace(owner, 'INVALID_PROJECT_OWNER', 'Project owner must be an active project manager.')
   return owner.id
 }
 
@@ -56,7 +58,9 @@ export const projectService = {
 
   create: async (user: AuthUser, input: { name: string; description?: string | null; clientId: string; status?: ProjectStatus; createdById?: string }) => {
     const ownerId = await resolveOwnerId(user, input.createdById)
-    if (!(await clientRepository.findById(input.clientId))) throw new AppError(422, 'INVALID_CLIENT', 'Client does not exist.')
+    const client = await clientRepository.findById(input.clientId)
+    if (!client) throw new AppError(422, 'INVALID_CLIENT', 'Client does not exist.')
+    assertSameWorkspace(client, 'INVALID_CLIENT', 'Client does not exist.')
 
     const created = await prisma.$transaction(async (tx) => {
       const project = await tx.project.create({
@@ -90,7 +94,11 @@ export const projectService = {
       throw new AppError(403, 'FORBIDDEN', 'You do not have permission to update this project.')
     }
     if (Object.entries(input).every(([key, value]) => existing[key as keyof typeof existing] === value)) return existing
-    if (input.clientId && !(await clientRepository.findById(input.clientId))) throw new AppError(422, 'INVALID_CLIENT', 'Client does not exist.')
+    if (input.clientId) {
+      const nextClient = await clientRepository.findById(input.clientId)
+      if (!nextClient) throw new AppError(422, 'INVALID_CLIENT', 'Client does not exist.')
+      assertSameWorkspace(nextClient, 'INVALID_CLIENT', 'Client does not exist.')
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       const project = await tx.project.update({

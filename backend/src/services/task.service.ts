@@ -8,7 +8,7 @@ import { userRepository } from '../repositories/user.repository'
 import type { AuthUser } from '../types/auth'
 import { AppError } from '../utils/app-error'
 import { paginationMeta } from '../utils/pagination'
-import { assertTaskAccess } from './policy.service'
+import { assertTaskAccess, assertSameWorkspace } from './policy.service'
 
 export type TaskFilters = {
   page: number
@@ -47,9 +47,11 @@ const taskForResponse = (task: TaskWithRelations, user: AuthUser) => {
 
 const validateDeveloper = async (developerId: string | null | undefined): Promise<void> => {
   if (!developerId) return
-  if (!(await userRepository.findActiveDeveloper(developerId))) {
+  const developer = await userRepository.findActiveDeveloper(developerId)
+  if (!developer) {
     throw new AppError(422, 'INVALID_DEVELOPER', 'Assigned developer must be an active developer account.')
   }
+  assertSameWorkspace(developer, 'INVALID_DEVELOPER', 'Assigned developer must be an active developer account.')
 }
 
 /**
@@ -67,11 +69,12 @@ const validateDeveloperInTransaction = async (
   if (!developerId) return
   const developer = await tx.user.findFirst({
     where: { id: developerId, role: Role.DEVELOPER, isActive: true },
-    select: { id: true }
+    select: { id: true, workspaceId: true }
   })
   if (!developer) {
     throw new AppError(422, 'INVALID_DEVELOPER', 'Assigned developer must be an active developer account.')
   }
+  assertSameWorkspace(developer, 'INVALID_DEVELOPER', 'Assigned developer must be an active developer account.')
 }
 
 export const taskService = {
