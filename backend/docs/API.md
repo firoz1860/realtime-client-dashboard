@@ -37,6 +37,8 @@ Common errors are `400 INVALID_JSON`, `401 AUTH_REQUIRED/INVALID_ACCESS_TOKEN/AC
 
 | Method | Path | Access | Request | Success | Important errors |
 | --- | --- | --- | --- | --- | --- |
+| GET | `/api/auth/config` | Public | — | `{ signupEnabled }` | — |
+| POST | `/api/auth/register` | Public | JSON `{ name, email, password }` (password ≥ 8 chars with a letter and a number) | `201 { accessToken, user }` plus HttpOnly refresh cookie. First account in an empty DB becomes `ADMIN`; later accounts get `SIGNUP_DEFAULT_ROLE` | `403 SIGNUP_DISABLED`, `409 EMAIL_TAKEN`, `422 VALIDATION_ERROR`, `429 RATE_LIMITED` |
 | POST | `/api/auth/login` | Public | JSON `{ email, password }` | `{ accessToken, user }` plus HttpOnly refresh cookie | `401 INVALID_CREDENTIALS`, `403 ACCOUNT_INACTIVE`, `422 VALIDATION_ERROR`, `429 RATE_LIMITED` |
 | POST | `/api/auth/refresh` | Refresh cookie | No JSON body | New `{ accessToken, user }` and rotated refresh cookie | `401 REFRESH_COOKIE_MISSING/INVALID_REFRESH_TOKEN/REFRESH_REVOKED/REFRESH_EXPIRED`, `403 ACCOUNT_INACTIVE`, `409 REFRESH_RACE`, `429 RATE_LIMITED` |
 | POST | `/api/auth/logout` | Cookie optional | No JSON body | `{ loggedOut: true }`; current session is revoked when cookie exists and cookie is cleared | `500 INTERNAL_ERROR` |

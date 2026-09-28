@@ -795,3 +795,141 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; height
   .dashboard-shell .topbar { flex-basis: 62px; border-radius: 14px !important; }
   .dashboard-shell .content-wrap { padding: 22px 16px 30px; border-radius: 14px; }
 }
+
+/* ================================================================
+   UI/UX POLISH PASS — authoritative final layer (kept last).
+   Scope: dashboard workspace only (never the intentional dark
+   landing page). Goals, all additive — no structure or behavior
+   changed, no markup or data flow touched:
+     1. Text contrast → WCAG AA (4.5:1) for muted body text and for
+        status / priority pills that were failing on their tints.
+     2. Sidebar ↔ workspace separation (crisper edge + soft shadow).
+     3. 8px spacing rhythm for the KPI / panel grids.
+     4. Smooth, consistent interaction feedback (hover + press).
+   Everything below is disabled automatically under
+   prefers-reduced-motion by the global reduce block above.
+   ================================================================ */
+
+/* ---- 1. Contrast: muted secondary text on light surfaces ------- */
+/* Previous values (#8790a1, #9aa2b0, #929aaa, #a9b0bd, #abb2bf …)
+   sat at 2.3–3.4:1 on white. #5c6675 = ~5.2:1 on #fff / ~5:1 on the
+   #f7f8fc content panel — comfortably AA at every body size used. */
+.dashboard-shell .eyebrow,
+.dashboard-shell .page-intro p,
+.dashboard-shell .kpi-heading,
+.dashboard-shell .kpi-change,
+.dashboard-shell .panel-head p,
+.dashboard-shell .chart-legend,
+.dashboard-shell .chart-y span,
+.dashboard-shell .chart-x span,
+.dashboard-shell .project-title span,
+.dashboard-shell .project-meta,
+.dashboard-shell .activity-copy p,
+.dashboard-shell .activity-copy small,
+.dashboard-shell .deadline-item > div:nth-child(2) span,
+.dashboard-shell .date-tile small,
+.dashboard-shell .workspace-view-head p,
+.dashboard-shell .workspace-item-copy span,
+.dashboard-shell .workspace-empty,
+.dashboard-shell .workspace-empty span,
+.dashboard-shell .modal-head p,
+.dashboard-shell .account-card p,
+.dashboard-shell .panel-title p,
+.dashboard-shell .settings-fields label,
+.dashboard-shell .settings-note,
+.dashboard-shell .security-row span,
+.dashboard-shell .session-row small,
+.dashboard-shell .help-hero p,
+.dashboard-shell .help-card p,
+.dashboard-shell .help-footer-card span,
+.dashboard-shell .support-page-head p,
+.dashboard-shell .notification-item small,
+.dashboard-shell .notification-empty,
+.dashboard-shell .activity-empty-row,
+.dashboard-shell .message-meta time,
+.dashboard-shell .chat-message p,
+.dashboard-shell .chat-channel small,
+.dashboard-shell .conversation-head p,
+.dashboard-shell .role-rows small { color: #5c6675 !important; }
+
+/* Placeholders / input filter text: darker but still clearly muted. */
+.dashboard-shell .mini-search,
+.dashboard-shell .mini-search input::placeholder,
+.dashboard-shell .filter-button { color: #626c7d; }
+.dashboard-shell .mini-search input::placeholder,
+.dashboard-shell .support-form input::placeholder { color: #6b7385; }
+
+/* Icon-only glyph accents beside text stay decorative (3:1 non-text). */
+.dashboard-shell .kpi-heading svg { color: #9199a8; }
+
+/* Status / priority pills: darken the label so text ≥ 4.5:1 on its
+   own tinted background while keeping the same soft badge fill. */
+.dashboard-shell .change-pill,
+.dashboard-shell .status-live { color: #1a815b !important; }
+.dashboard-shell .workspace-status.blue { color: #4551d4 !important; }
+.dashboard-shell .workspace-status.purple { color: #6f4bc9 !important; }
+.dashboard-shell .workspace-status.orange { color: #b45f13 !important; }
+.dashboard-shell .workspace-status.green { color: #1a815b !important; }
+.dashboard-shell .priority.high { color: #c23434 !important; }
+.dashboard-shell .priority.medium { color: #a86a11 !important; }
+.dashboard-shell .priority.low { color: #1a815b !important; }
+
+/* ---- 2. Sidebar ↔ workspace separation ------------------------- */
+@media (min-width: 769px) {
+  .dashboard-shell > .sidebar {
+    box-shadow: 14px 0 34px rgba(52, 65, 98, .13),
+                1px 0 0 rgba(120, 132, 178, .18),
+                inset 0 1px #fff !important;
+  }
+}
+
+/* ---- 3. 8px spacing rhythm on the metric / panel grids --------- */
+@media (min-width: 601px) {
+  .dashboard-shell .stats-grid { gap: 16px; }
+  .dashboard-shell .dashboard-grid,
+  .dashboard-shell .lower-grid { gap: 16px; }
+  .dashboard-shell .kpi-card { padding: 18px; }
+}
+
+/* ---- 4. Smooth, consistent interaction feedback ---------------- */
+.dashboard-shell .nav-item {
+  transition: color .18s ease, background .18s ease,
+              box-shadow .2s ease, transform .12s ease;
+}
+.dashboard-shell .nav-item:active { transform: translateY(1px); }
+.dashboard-shell .workspace-item {
+  transition: transform .18s ease, border-color .18s ease,
+              box-shadow .18s ease, background .18s ease;
+}
+.dashboard-shell .workspace-item:not(.static-item):active { transform: translateX(2px) scale(.998); }
+.dashboard-shell .icon-button,
+.dashboard-shell .user-button {
+  transition: background .18s ease, box-shadow .18s ease, transform .12s ease;
+}
+.dashboard-shell .icon-button:active,
+.dashboard-shell .user-button:active { transform: translateY(1px); }
+.dashboard-shell .kpi-card { transition: transform .22s ease, box-shadow .22s ease; }
+.dashboard-shell .text-button:hover,
+.dashboard-shell .activity-link:hover,
+.dashboard-shell .view-all:hover,
+.dashboard-shell .help-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ================================================================
+   MOBILE DRAWER TAP FIX (verified via Playwright — kept last).
+   Bug: on ≤768px the open navigation drawer could not be tapped and
+   appeared blurred. The drawer block above sets the sidebar to
+   `z-index: 120 !important` through the higher-specificity selector
+   `.dashboard-shell > .sidebar:not(:hover)` (0,3,0), which overrode
+   the intended `z-index: 140` (0,2,0). With the backdrop at z-index
+   130, the backdrop rendered ON TOP of the drawer — swallowing every
+   tap on the nav items and blurring them via its backdrop-filter.
+   Fix: give the open drawer a winning z-index (same-specificity, but
+   later in source) so it sits above the backdrop again.
+   Confirmed: elementFromPoint over a nav item now returns the nav
+   item, not the backdrop.
+   ================================================================ */
+@media (max-width: 768px) {
+  .dashboard-shell > .sidebar { z-index: 140 !important; }
+  .dashboard-shell > .sidebar.open { z-index: 150 !important; }
+  .dashboard-shell .mobile-backdrop.show { z-index: 130 !important; }
+}

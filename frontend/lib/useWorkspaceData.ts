@@ -31,6 +31,10 @@ export interface WorkspaceData {
   notifications: NotificationItem[]
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: () => void
+  /** Shared realtime connection (one per signed-in session). */
+  socket: AppSocket | null
+  /** Re-fetch KPIs after a local mutation. */
+  reload: () => void
 }
 
 const FEED_CAP = 50
@@ -79,6 +83,9 @@ const dedupePrepend = <T extends { id: string }>(list: T[], incoming: T, cap: nu
 }
 
 export function useWorkspaceData(user: AuthUser | null, chatActive = false): WorkspaceData {
+  const [socket, setSocket] = useState<AppSocket | null>(null)
+  const [reloadTick, setReloadTick] = useState(0)
+  const reload = useCallback(() => setReloadTick((n) => n + 1), [])
   const [kpis, setKpis] = useState<Kpi[]>([])
   const [feed, setFeed] = useState<ActivityItem[]>([])
   const [unread, setUnread] = useState(0)
@@ -148,6 +155,7 @@ export function useWorkspaceData(user: AuthUser | null, chatActive = false): Wor
 
     const socket = connectSocket(token)
     socketRef.current = socket
+    setSocket(socket)
 
     const loadCatchup = () => {
       void catchupActivity(socket, 20).then((events) => {
@@ -205,11 +213,22 @@ export function useWorkspaceData(user: AuthUser | null, chatActive = false): Wor
       socket.removeAllListeners()
       socket.disconnect()
       socketRef.current = null
+      setSocket(null)
     }
   }, [user])
 
+  // Lightweight KPI refresh after local changes (does not reconnect the socket).
+  useEffect(() => {
+    if (!user || reloadTick === 0) return
+    let active = true
+    void dashboardApi.byRole(user.role)
+      .then((dashboard) => { if (active) setKpis(buildKpis(user.role, dashboard, user.role === 'ADMIN' ? (dashboard as AdminDashboard).onlineUsers : null)) })
+      .catch(() => undefined)
+    return () => { active = false }
+  }, [user, reloadTick])
+
   return useMemo(
-    () => ({ kpis, feed, unread, onlineUsers, loading, error, chatUnread, notificationPulse, chatPulse, notifications, markNotificationRead, markAllNotificationsRead }),
-    [kpis, feed, unread, onlineUsers, loading, error, chatUnread, notificationPulse, chatPulse, notifications, markNotificationRead, markAllNotificationsRead],
+    () => ({ kpis, feed, unread, onlineUsers, loading, error, chatUnread, notificationPulse, chatPulse, notifications, markNotificationRead, markAllNotificationsRead, socket, reload }),
+    [kpis, feed, unread, onlineUsers, loading, error, chatUnread, notificationPulse, chatPulse, notifications, markNotificationRead, markAllNotificationsRead, socket, reload],
   )
 }

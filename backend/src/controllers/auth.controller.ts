@@ -10,6 +10,15 @@ const setRefreshCookie = (res: Response, token: string): void => {
 }
 
 export const authController = {
+  config: async (_req: Request, res: Response) => {
+    res.json({ success: true, data: { signupEnabled: env.ALLOW_PUBLIC_SIGNUP } })
+  },
+  register: async (req: Request, res: Response) => {
+    const body = req.body as { name: string; email: string; password: string }
+    const result = await authService.register(body)
+    setRefreshCookie(res, result.refreshToken)
+    res.status(201).json({ success: true, data: { accessToken: result.accessToken, user: result.user } })
+  },
   login: async (req: Request, res: Response) => {
     const body = req.body as { email: string; password: string }
     const result = await authService.login(body.email, body.password)

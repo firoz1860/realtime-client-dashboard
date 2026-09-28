@@ -65,15 +65,19 @@ interface RequestOptions {
 let refreshInFlight: Promise<boolean> | null = null
 
 async function doRefresh(): Promise<boolean> {
-  const res = await fetch(`${API_BASE}/api/auth/refresh`, {
-    method: 'POST',
-    credentials: 'include',
-  })
-  if (!res.ok) return false
-  const json = (await res.json()) as Envelope<{ accessToken: string; user: AuthUser }>
-  if (!json.success) return false
-  accessToken = json.data.accessToken
-  return true
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+    if (!res.ok) return false
+    const json = (await res.json()) as Envelope<{ accessToken: string; user: AuthUser }>
+    if (!json.success) return false
+    accessToken = json.data.accessToken
+    return true
+  } catch {
+    return false
+  }
 }
 
 function refreshOnce(): Promise<boolean> {
@@ -91,12 +95,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (auth && accessToken) headers.Authorization = `Bearer ${accessToken}`
 
-  const res = await fetch(`${API_BASE}/api${path}`, {
-    method,
-    credentials: 'include',
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}/api${path}`, {
+      method,
+      credentials: 'include',
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+  } catch {
+    throw new ApiError(0, { code: 'NETWORK', message: 'Cannot reach the server. Check that the API is running and try again.' })
+  }
 
   // Transparent refresh + retry on an expired access token.
   if (res.status === 401 && auth && retryOn401) {
@@ -117,6 +126,12 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   if (!res.ok || !json.success) {
     const error = 'error' in json ? json.error : { code: 'UNKNOWN', message: 'Unexpected error.' }
+    // Surface the first field-level validation message instead of the generic one.
+    if (error.code === 'VALIDATION_ERROR' && Array.isArray(error.details) && error.details.length) {
+      const first = error.details[0] as { message?: string; path?: unknown[] }
+      const field = Array.isArray(first.path) && first.path.length ? String(first.path[first.path.length - 1]) : ''
+      if (first.message) error.message = field && !first.message.toLowerCase().includes(field.toLowerCase()) ? `${field}: ${first.message}` : first.message
+    }
     throw new ApiError(res.status, error)
   }
   return json.data
@@ -131,11 +146,26 @@ export const api = {
       method: 'POST',
       body: { email, password },
       auth: false,
+      retryOn401: false,
     }).then((data) => {
       accessToken = data.accessToken
       rememberSession(true)
       return data
     }),
+
+  register: (input: { name: string; email: string; password: string }) =>
+    request<{ accessToken: string; user: AuthUser }>('/auth/register', {
+      method: 'POST',
+      body: input,
+      auth: false,
+      retryOn401: false,
+    }).then((data) => {
+      accessToken = data.accessToken
+      rememberSession(true)
+      return data
+    }),
+
+  authConfig: () => request<{ signupEnabled: boolean }>('/auth/config', { auth: false, retryOn401: false }),
 
   /** Restore a session on page load using the HttpOnly refresh cookie. */
   bootstrap: async (): Promise<AuthUser | null> => {

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import bcrypt from 'bcryptjs'
-import { Prisma, type User } from '@prisma/client'
+import { Prisma, Role, type User } from '@prisma/client'
 import { env } from '../config/env'
 import { prisma } from '../lib/prisma'
 import { refreshTokenRepository } from '../repositories/refresh-token.repository'
@@ -22,27 +22,65 @@ const buildRefreshSession = (userId: string) => {
   }
 }
 
+const issueSession = async (user: User) => {
+  const session = buildRefreshSession(user.id)
+  await refreshTokenRepository.create({
+    id: session.sessionId,
+    userId: user.id,
+    tokenHash: session.tokenHash,
+    expiresAt: session.expiresAt
+  })
+  return {
+    accessToken: signAccessToken(user.id, user.role),
+    refreshToken: session.refreshToken,
+    user: publicUser(user)
+  }
+}
+
 export const authService = {
+  register: async (input: { name: string; email: string; password: string }) => {
+    if (!env.ALLOW_PUBLIC_SIGNUP) {
+      throw new AppError(403, 'SIGNUP_DISABLED', 'Self-service signup is disabled. Ask your workspace administrator for an account.')
+    }
+    const passwordHash = await bcrypt.hash(input.password, 12)
+
+    let user: User
+    try {
+      user = await prisma.$transaction(async (tx) => {
+        const existing = await tx.user.findUnique({ where: { email: input.email }, select: { id: true } })
+        if (existing) throw new AppError(409, 'EMAIL_TAKEN', 'An account with this email already exists. Try logging in instead.')
+        // Bootstrap: the first account in an empty workspace becomes the admin.
+        const isFirstUser = (await tx.user.count()) === 0
+        return tx.user.create({
+          data: {
+            name: input.name,
+            email: input.email,
+            passwordHash,
+            role: isFirstUser ? Role.ADMIN : Role[env.SIGNUP_DEFAULT_ROLE],
+            isActive: true
+          }
+        })
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new AppError(409, 'EMAIL_TAKEN', 'An account with this email already exists. Try logging in instead.')
+      }
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+        throw new AppError(409, 'SIGNUP_RACE', 'Signup could not be completed. Please try again.')
+      }
+      throw error
+    }
+
+    return issueSession(user)
+  },
+
   login: async (email: string, password: string) => {
     const user = await userRepository.findByEmail(email)
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       throw new AppError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.')
     }
     if (!user.isActive) throw new AppError(403, 'ACCOUNT_INACTIVE', 'This account is inactive.')
-
-    const session = buildRefreshSession(user.id)
-    await refreshTokenRepository.create({
-      id: session.sessionId,
-      userId: user.id,
-      tokenHash: session.tokenHash,
-      expiresAt: session.expiresAt
-    })
-
-    return {
-      accessToken: signAccessToken(user.id, user.role),
-      refreshToken: session.refreshToken,
-      user: publicUser(user)
-    }
+    return issueSession(user)
   },
 
   refresh: async (rawToken: string) => {

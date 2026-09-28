@@ -84,6 +84,8 @@ export const userApi = {
   developers: () => api.request<TeamUser[]>('/users/developers'),
   create: (body: { name: string; email: string; password: string; role: 'ADMIN' | 'PROJECT_MANAGER' | 'DEVELOPER' }) =>
     api.request<TeamUser>('/users', { method: 'POST', body }),
+  update: (id: string, body: { role?: 'ADMIN' | 'PROJECT_MANAGER' | 'DEVELOPER'; isActive?: boolean; name?: string }) =>
+    api.request<TeamUser>(`/users/${id}`, { method: 'PATCH', body }),
   list: (params: { role?: string } = {}) => {
     const q = new URLSearchParams({ limit: '100' })
     if (params.role) q.set('role', params.role)

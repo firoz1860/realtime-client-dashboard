@@ -18,7 +18,12 @@ const envSchema = z.object({
   COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('lax'),
   CRON_TIMEZONE: z.string().default('UTC'),
   OVERDUE_CRON: z.string().default('*/5 * * * *'),
-  LOG_LEVEL: z.string().default('info')
+  LOG_LEVEL: z.string().default('info'),
+  // Public self-service signup. New accounts get SIGNUP_DEFAULT_ROLE; the very
+  // first account in an empty database becomes ADMIN so a fresh deploy can be
+  // bootstrapped without shell access.
+  ALLOW_PUBLIC_SIGNUP: z.enum(['true', 'false']).default('true').transform((value) => value === 'true'),
+  SIGNUP_DEFAULT_ROLE: z.enum(['DEVELOPER', 'PROJECT_MANAGER']).default('DEVELOPER')
 })
 
 const parsed = envSchema.safeParse(process.env)

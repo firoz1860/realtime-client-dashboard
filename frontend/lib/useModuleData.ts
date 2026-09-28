@@ -20,6 +20,8 @@ export interface ModuleItem {
   status?: string
   isRead?: boolean
   date?: string | null
+  role?: string
+  isActive?: boolean
 }
 
 export interface ModuleData {
@@ -111,7 +113,7 @@ export function useModuleData(view: string, user: AuthUser | null, search = ''):
       }
       if (view === 'Team') {
         const rows = role === 'ADMIN' ? await userApi.list() : await userApi.developers()
-        return rows.map((u) => ({ id: u.id, title: u.name, meta: `${roleLabel(u.role)} · ${u.email}`, tone: toneFor(u.id), value: u.isActive ? 'Active' : 'Inactive', kind: 'team' }))
+        return rows.map((u) => ({ id: u.id, title: u.name, meta: `${roleLabel(u.role)} · ${u.email}`, tone: toneFor(u.id), value: u.isActive ? 'Active' : 'Inactive', kind: 'team', role: u.role, isActive: u.isActive }))
       }
       if (view === 'Calendar') {
         const today = new Date().toISOString().slice(0, 10)

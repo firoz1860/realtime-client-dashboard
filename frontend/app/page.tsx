@@ -32,6 +32,7 @@ import { useWorkspaceData, type Kpi } from '../lib/useWorkspaceData'
 import { useModuleData, type ModuleItem } from '../lib/useModuleData'
 import { clientApi, notificationApi, projectApi, taskApi, userApi } from '../lib/endpoints'
 import type { AuthUser, Client, Project, TaskStatus, TeamUser } from '../lib/types'
+import type { AppSocket } from '../lib/socket'
 import { activityLine, initials, relativeTime, roleLabel, toneFor } from '../lib/format'
 import { ChatView } from '../components/chat-view'
 import { datePresetRange, isInDateRange } from '../lib/date-filter'
@@ -78,7 +79,7 @@ const KPI_ICONS: Record<Kpi['iconKey'], typeof Target> = {
 
 type WorkspaceItem = { title: string; meta: string; tone: string; value: string }
 
-function WorkspaceView({ view, onToast, user, onAddNew, onOpenProject, initialQuery = '' }: { view: string; onToast: (message: string) => void; user: AuthUser | null; onAddNew: (view: string) => void; onOpenProject: (name: string) => void; initialQuery?: string }) {
+function WorkspaceView({ view, onToast, user, socket, onAddNew, onOpenProject, initialQuery = '' }: { view: string; onToast: (message: string) => void; user: AuthUser | null; socket: AppSocket | null; onAddNew: (view: string) => void; onOpenProject: (name: string) => void; initialQuery?: string }) {
   const { updateProfile } = useAuth()
   const [profileName, setProfileName] = useState(user?.name ?? '')
   const [profileBusy, setProfileBusy] = useState(false)
@@ -130,7 +131,7 @@ function WorkspaceView({ view, onToast, user, onAddNew, onOpenProject, initialQu
   // Overview (and any view with neither static content nor a backed fetch) renders no module box.
   if (!data && !moduleData.supported) return null
   // Chat is a bespoke real-time module.
-  if (view === 'Chat') return <div className="reveal-up"><ChatView user={user} onToast={onToast} /></div>
+  if (view === 'Chat') return <div className="reveal-up"><ChatView user={user} socket={socket} onToast={onToast} /></div>
   if (view === 'Settings') return <section className="workspace-view reveal-up">
     <div className="workspace-view-head"><div><span className="eyebrow-label">Account</span><h2>Settings</h2><p>Update your display name and review your account access.</p></div></div>
     {user ? <form onSubmit={(event) => { event.preventDefault(); void saveProfile() }}>
@@ -452,7 +453,7 @@ export default function Page() {
 
           {createdProject && activeNav === 'Projects' && <div className="created-project-banner"><Check size={15} /><span><strong>{createdProject}</strong> is ready in your project portfolio.</span><button onClick={() => setCreatedProject(null)} aria-label="Dismiss project confirmation"><X size={14} /></button></div>}
 
-          <WorkspaceView key={`${activeNav}-${moduleRefresh}-${moduleQuery}`} view={activeNav} initialQuery={moduleQuery} user={user} onAddNew={handleAddNew} onOpenProject={(name) => { selectNav('Tasks'); setModuleQuery(name) }} onToast={(message) => { setToastMessage(message); setToast(true); window.setTimeout(() => setToast(false), 2600) }} />
+          <WorkspaceView key={`${activeNav}-${moduleRefresh}-${moduleQuery}`} view={activeNav} initialQuery={moduleQuery} user={user} socket={workspace.socket} onAddNew={handleAddNew} onOpenProject={(name) => { selectNav('Tasks'); setModuleQuery(name) }} onToast={(message) => { setToastMessage(message); setToast(true); window.setTimeout(() => setToast(false), 2600) }} />
 
           <div className="stats-grid">{workspace.kpis.length
             ? workspace.kpis.map((kpi) => <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} icon={KPI_ICONS[kpi.iconKey]} tone={kpi.tone} />)
