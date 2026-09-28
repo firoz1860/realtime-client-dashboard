@@ -1461,8 +1461,9 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; height
 /* The expanded width is driven by a token the existing (and !important) rule
    `@media (min-width: 601px) { .sidebar:hover { width: var(--sidebar-expanded) } }`
    already reads, so re-pointing the token is cleaner than fighting specificity.
-   238/240px -> 214px: a slighter, lighter reveal. */
-:root { --sidebar-expanded: 214px; }
+   240px -> 168px: a slight reveal that is still wide enough for every nav
+   label to read in full ("Notifications" is the longest at 13 characters). */
+:root { --sidebar-expanded: 168px; }
 
 .dashboard-shell .sidebar:hover,
 .dashboard-shell .sidebar:focus-within {
