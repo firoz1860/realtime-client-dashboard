@@ -16,7 +16,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
     "audit": "tsx scripts/audit.ts",
-    "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run audit"
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run audit",
+    "test:isolation": "vitest run --config vitest.integration.config.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
