@@ -82,7 +82,9 @@ enum NotificationType {
 model User {
   id                    String         @id @default(uuid()) @db.Uuid
   name                  String
-  email                 String         @unique
+  // Unique per workspace, not globally: the same person may be an employee
+  // of more than one company. See @@unique([workspaceId, email]) below.
+  email                 String
   passwordHash          String
   role                  Role
   isActive              Boolean        @default(true)
@@ -100,6 +102,14 @@ model User {
   notificationsActed    Notification[] @relation("NotificationActor")
   messages              Message[]      @relation("MessageSender")
 
+  // One account per email per company. Two workspaces may each have a
+  // firoz@gmail.com; one workspace may not have two.
+  //
+  // Caveat: Postgres treats NULLs as distinct, and workspaceId is NULL for
+  // SUPER_ADMIN, so this does not stop two SUPER_ADMIN rows sharing an email.
+  // No endpoint can mint a SUPER_ADMIN (prisma/seed.ts only), so that is not
+  // reachable through the API.
+  @@unique([workspaceId, email])
   @@index([role, isActive])
   @@index([workspaceId])
   @@index([workspaceId, role, isActive])

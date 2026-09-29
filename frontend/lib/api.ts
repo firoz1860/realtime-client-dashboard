@@ -135,10 +135,12 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 export const api = {
   request,
 
-  login: (email: string, password: string) =>
+  // Email is unique per workspace, so it cannot identify an account alone. The
+  // workspace slug names the company being signed in to.
+  login: (workspaceSlug: string, email: string, password: string) =>
     request<{ accessToken: string; user: AuthUser }>('/auth/login', {
       method: 'POST',
-      body: { email, password },
+      body: { workspaceSlug, email, password },
       auth: false,
       retryOn401: false,
     }).then((data) => {

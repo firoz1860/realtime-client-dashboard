@@ -20,8 +20,8 @@ export const authController = {
     res.status(201).json({ success: true, data: { accessToken: result.accessToken, user: result.user } })
   },
   login: async (req: Request, res: Response) => {
-    const body = req.body as { email: string; password: string }
-    const result = await authService.login(body.email, body.password)
+    const body = req.body as { workspaceSlug: string; email: string; password: string }
+    const result = await authService.login(body.workspaceSlug, body.email, body.password)
     setRefreshCookie(res, result.refreshToken)
     res.json({ success: true, data: { accessToken: result.accessToken, user: result.user } })
   },

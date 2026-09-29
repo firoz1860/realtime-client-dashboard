@@ -1,6 +1,9 @@
 import { z } from 'zod'
 
 export const loginBodySchema = z.object({
+  // Email alone cannot identify an account now that it is unique per workspace,
+  // so the caller names its company. Matches Workspace.slug.
+  workspaceSlug: z.string().trim().min(1, 'Enter your workspace.').max(64).toLowerCase(),
   email: z.string().email().transform((value) => value.toLowerCase()),
   password: z.string().min(8).max(128)
 })

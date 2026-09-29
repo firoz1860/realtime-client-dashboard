@@ -1496,3 +1496,14 @@ html, body { overflow-x: clip !important; overflow-y: visible !important; height
   .dashboard-shell .chat-channel.is-active .chip-icon { transform: none !important; }
   .dashboard-shell .sidebar .sidebar-nav .nav-item > span { transition-delay: 0ms !important; }
 }
+
+/* Hint under the workspace field on the login form. Added 2026-09-29 with
+   per-workspace email uniqueness, which made the workspace name part of
+   signing in. */
+.auth-preview .field-hint {
+  display: block;
+  margin-top: 5px;
+  color: #c6cbe8;
+  font-size: 10.5px;
+  line-height: 1.45;
+}

@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs'
+import { Prisma } from '@prisma/client'
 import { Role } from '@prisma/client'
 import { eventBus } from '../lib/events'
 import { requireWorkspaceId } from '../lib/tenant-context'
@@ -22,13 +23,27 @@ export const userService = {
 
   create: async (input: { name: string; email: string; password: string; role: Role; isActive?: boolean }) => {
     const passwordHash = await bcrypt.hash(input.password, 12)
-    return userRepository.create({
-      name: input.name,
-      email: input.email,
-      passwordHash,
-      role: input.role,
-      isActive: input.isActive ?? true
-    })
+    try {
+      // workspaceId is injected by the tenant extension, so the unique key that
+      // can collide here is (workspaceId, email): the same address is fine in
+      // another company, but not twice in this one.
+      return await userRepository.create({
+        name: input.name,
+        email: input.email,
+        passwordHash,
+        role: input.role,
+        isActive: input.isActive ?? true
+      })
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new AppError(
+          409,
+          'EMAIL_TAKEN',
+          'Someone in this workspace already uses that email address.'
+        )
+      }
+      throw error
+    }
   },
 
   update: async (id: string, input: { name?: string; email?: string; password?: string; role?: Role; isActive?: boolean }) => {

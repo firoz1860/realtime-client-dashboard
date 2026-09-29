@@ -53,11 +53,19 @@ npm run dev                 # http://localhost:3000
 
 Open http://localhost:3000 → **Log in** → use a seeded account:
 
-| Role            | Email                  | Password       |
-|-----------------|------------------------|----------------|
-| Admin           | admin@dashboard.test   | `Admin123!`    |
-| Project Manager | pm1@dashboard.test     | `Manager123!`  |
-| Developer       | dev1@dashboard.test    | `Developer123!`|
+Logging in asks for a **workspace** as well, because an email address is only
+unique within its own company: the same address may be an employee of several
+workspaces. The seeded company's workspace is `orbit-studio`.
+
+| Workspace       | Role            | Email                  | Password       |
+|-----------------|-----------------|------------------------|----------------|
+| `orbit-studio`  | Admin           | admin@dashboard.test   | `Admin123!`    |
+| `orbit-studio`  | Project Manager | pm1@dashboard.test     | `Manager123!`  |
+| `orbit-studio`  | Developer       | dev1@dashboard.test    | `Developer123!`|
+
+A new company signs up from the landing page ("Create your workspace"), which
+provisions its own workspace and makes the signer its admin. The workspace name
+shown under the company in the sidebar is the slug used to log in.
 
 ## What is wired to the backend
 

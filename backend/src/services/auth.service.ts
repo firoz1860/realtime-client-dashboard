@@ -78,8 +78,10 @@ export const authService = {
     let user: User
     try {
       user = await prismaSystem.$transaction(async (tx) => {
-        const existing = await tx.user.findUnique({ where: { email: input.email }, select: { id: true } })
-        if (existing) throw new AppError(409, 'EMAIL_TAKEN', 'An account with this email already exists. Try logging in instead.')
+        // No duplicate check here on purpose. Uniqueness is per workspace and
+        // signup always provisions a brand-new one, so a collision is not
+        // possible. One person may therefore own several workspaces with the
+        // same address, which is the intended behaviour.
         // Signing up provisions a workspace and makes the signer its admin.
         // There is no global-first-user special case any more: each account is
         // the administrator of its own company, never of the whole platform.
@@ -111,16 +113,31 @@ export const authService = {
     return issueSession(user)
   },
 
-  login: async (email: string, password: string) => {
-    // Deliberately unscoped: login cannot know the workspace until the user is
-    // found, so this must not go through the tenant-scoped repository. Email is
-    // globally unique, so exactly one row can match.
-    const user = await prismaSystem.user.findUnique({
-      where: { email },
-      include: { workspace: { select: { id: true, name: true, slug: true } } }
+  /**
+   * Email is unique per workspace, so it cannot identify an account on its own:
+   * the same address may belong to several companies. The caller therefore names
+   * its workspace by slug, and the account is resolved on the composite key.
+   *
+   * A missing workspace returns the SAME error as a wrong password. Saying
+   * "no such workspace" would let anyone enumerate which companies exist.
+   */
+  login: async (workspaceSlug: string, email: string, password: string) => {
+    // Unscoped by necessity: there is no tenant context until the workspace is
+    // resolved, which is what this does.
+    const workspace = await prismaSystem.workspace.findUnique({
+      where: { slug: workspaceSlug },
+      select: { id: true, name: true, slug: true, status: true }
     })
+
+    const user = workspace
+      ? await prismaSystem.user.findUnique({
+          where: { workspaceId_email: { workspaceId: workspace.id, email } },
+          include: { workspace: { select: { id: true, name: true, slug: true } } }
+        })
+      : null
+
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      throw new AppError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.')
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'Workspace, email or password is incorrect.')
     }
     if (!user.isActive) throw new AppError(403, 'ACCOUNT_INACTIVE', 'This account is inactive.')
     await assertWorkspaceActive(user.workspaceId)

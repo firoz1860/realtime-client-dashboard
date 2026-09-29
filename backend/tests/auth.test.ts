@@ -4,6 +4,7 @@ import { Role } from '@prisma/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
+  findWorkspaceBySlug: vi.fn(),
   findUserByEmail: vi.fn(),
   findSafeById: vi.fn(),
   updateUser: vi.fn(),
@@ -29,7 +30,7 @@ vi.mock('../src/lib/prisma-system', () => ({
     $transaction: mocks.transaction,
     user: { findUnique: mocks.findUserByEmail },
     // login checks the workspace is not suspended; ACTIVE by default here
-    workspace: { findUnique: vi.fn().mockResolvedValue({ status: 'ACTIVE' }) }
+    workspace: { findUnique: mocks.findWorkspaceBySlug }
   }
 }))
 
@@ -41,6 +42,10 @@ describe('auth service', () => {
   beforeEach(() => {
     mocks.createRefresh.mockResolvedValue({})
     mocks.revokeByHash.mockResolvedValue({ count: 1 })
+    // Re-armed each test: clearMocks resets factory implementations.
+    mocks.findWorkspaceBySlug.mockResolvedValue({
+      id: 'ws-1', name: 'Acme', slug: 'acme', status: 'ACTIVE'
+    })
   })
 
   it('logs in active users without exposing password hash in returned user', async () => {
@@ -55,7 +60,7 @@ describe('auth service', () => {
       createdAt: new Date(),
       updatedAt: new Date()
     })
-    const result = await authService.login('admin@test.com', 'Password123!')
+    const result = await authService.login('acme', 'admin@test.com', 'Password123!')
     expect(result.accessToken).toBeTypeOf('string')
     expect(result.refreshToken).toBeTypeOf('string')
     expect(result.user).not.toHaveProperty('passwordHash')
@@ -64,7 +69,7 @@ describe('auth service', () => {
 
   it('rejects invalid login credentials', async () => {
     mocks.findUserByEmail.mockResolvedValue(null)
-    await expect(authService.login('missing@test.com', 'Password123!')).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' })
+    await expect(authService.login('acme', 'missing@test.com', 'Password123!')).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' })
   })
 
   it('rotates refresh token atomically', async () => {

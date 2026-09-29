@@ -71,10 +71,23 @@ describe('self-service signup', () => {
     expect(mocks.tx.user.create.mock.calls[0]![0].data.role).toBe(Role.ADMIN)
   })
 
-  it('rejects an email that is already registered', async () => {
-    mocks.tx.user.findUnique.mockResolvedValue({ id: 'existing' })
-    await expect(authService.register(input)).rejects.toMatchObject({ statusCode: 409, code: 'EMAIL_TAKEN' })
-    expect(mocks.tx.user.create).not.toHaveBeenCalled()
+  it('lets one email create more than one workspace', async () => {
+    // Uniqueness is per workspace and signup always provisions a new one, so
+    // the same person may own several companies. The old global EMAIL_TAKEN
+    // rejection on this path is intentionally gone.
+    mocks.tx.user.create.mockImplementation(async ({ data }: { data: { role: Role } }) => created(data.role))
+
+    const first = await authService.register(input)
+    mocks.tx.workspace.create.mockResolvedValue({
+      id: 'b2b2c2d4-5b6e-4a7c-8d9e-0f1a2b3c4d5e',
+      name: input.companyName,
+      slug: 'test-company-2'
+    })
+    const second = await authService.register(input)
+
+    expect(first.user.role).toBe(Role.ADMIN)
+    expect(second.user.role).toBe(Role.ADMIN)
+    expect(mocks.tx.workspace.create).toHaveBeenCalledTimes(2)
   })
 
   it('maps a unique-constraint race to EMAIL_TAKEN', async () => {

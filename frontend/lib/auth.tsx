@@ -12,7 +12,7 @@ interface AuthContextValue {
   user: AuthUser | null
   status: AuthStatus
   signupEnabled: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (workspaceSlug: string, email: string, password: string) => Promise<void>
   register: (input: { name: string; email: string; password: string; companyName: string }) => Promise<void>
   logout: () => Promise<void>
   updateProfile: (name: string) => Promise<void>
@@ -54,9 +54,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (workspaceSlug: string, email: string, password: string) => {
     try {
-      const { user: loggedIn } = await api.login(email, password)
+      const { user: loggedIn } = await api.login(workspaceSlug, email, password)
       setUser(loggedIn)
       setStatus('authenticated')
     } catch (error) {
