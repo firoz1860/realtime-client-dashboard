@@ -4,7 +4,7 @@ import { Role } from '@prisma/client'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  findByEmail: vi.fn(),
+  findUserByEmail: vi.fn(),
   findSafeById: vi.fn(),
   updateUser: vi.fn(),
   createRefresh: vi.fn(),
@@ -14,7 +14,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../src/repositories/user.repository', () => ({
   userRepository: {
-    findByEmail: mocks.findByEmail,
     findSafeById: mocks.findSafeById,
     update: mocks.updateUser
   }
@@ -25,7 +24,14 @@ vi.mock('../src/repositories/refresh-token.repository', () => ({
     revokeByHash: mocks.revokeByHash
   }
 }))
-vi.mock('../src/lib/prisma-system', () => ({ prismaSystem: { $transaction: mocks.transaction, workspace: { findUnique: vi.fn() } } }))
+vi.mock('../src/lib/prisma-system', () => ({
+  prismaSystem: {
+    $transaction: mocks.transaction,
+    user: { findUnique: mocks.findUserByEmail },
+    // login checks the workspace is not suspended; ACTIVE by default here
+    workspace: { findUnique: vi.fn().mockResolvedValue({ status: 'ACTIVE' }) }
+  }
+}))
 
 import { authService } from '../src/services/auth.service'
 import { hashToken } from '../src/utils/hash'
@@ -39,7 +45,7 @@ describe('auth service', () => {
 
   it('logs in active users without exposing password hash in returned user', async () => {
     const passwordHash = await bcrypt.hash('Password123!', 4)
-    mocks.findByEmail.mockResolvedValue({
+    mocks.findUserByEmail.mockResolvedValue({
       id: randomUUID(),
       name: 'Admin',
       email: 'admin@test.com',
@@ -57,7 +63,7 @@ describe('auth service', () => {
   })
 
   it('rejects invalid login credentials', async () => {
-    mocks.findByEmail.mockResolvedValue(null)
+    mocks.findUserByEmail.mockResolvedValue(null)
     await expect(authService.login('missing@test.com', 'Password123!')).rejects.toMatchObject({ code: 'INVALID_CREDENTIALS' })
   })
 

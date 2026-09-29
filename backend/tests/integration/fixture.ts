@@ -20,7 +20,7 @@ export const testDatabaseUrl = (): string | null => {
   try {
     const envFile = readFileSync(join(__dirname, '..', '..', '.env.test'), 'utf8')
     const match = envFile.match(/^TEST_DATABASE_URL=(.+)$/m)
-    return match ? match[1].trim() : null
+    return match?.[1] ? match[1].trim() : null
   } catch {
     return null
   }

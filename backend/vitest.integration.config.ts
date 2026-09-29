@@ -17,7 +17,7 @@ const readTestDatabaseUrl = (): string => {
   if (process.env.TEST_DATABASE_URL) return process.env.TEST_DATABASE_URL
   try {
     const match = readFileSync('.env.test', 'utf8').match(/^TEST_DATABASE_URL=(.+)$/m)
-    return match ? match[1].trim() : ''
+    return match?.[1] ? match[1].trim() : ''
   } catch {
     return ''
   }

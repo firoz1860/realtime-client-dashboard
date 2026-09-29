@@ -94,7 +94,8 @@ export const authService = {
             role: Role.ADMIN,
             isActive: true,
             workspaceId: workspace.id
-          }
+          },
+          include: { workspace: { select: { id: true, name: true, slug: true } } }
         })
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
     } catch (error) {
@@ -111,7 +112,13 @@ export const authService = {
   },
 
   login: async (email: string, password: string) => {
-    const user = await userRepository.findByEmail(email)
+    // Deliberately unscoped: login cannot know the workspace until the user is
+    // found, so this must not go through the tenant-scoped repository. Email is
+    // globally unique, so exactly one row can match.
+    const user = await prismaSystem.user.findUnique({
+      where: { email },
+      include: { workspace: { select: { id: true, name: true, slug: true } } }
+    })
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       throw new AppError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect.')
     }
@@ -128,7 +135,12 @@ export const authService = {
     let result: User
     try {
       result = await prismaSystem.$transaction(async (tx) => {
-        const current = await tx.refreshToken.findUnique({ where: { id: payload.sid }, include: { user: true } })
+        const current = await tx.refreshToken.findUnique({
+          where: { id: payload.sid },
+          include: {
+            user: { include: { workspace: { select: { id: true, name: true, slug: true } } } }
+          }
+        })
         if (!current || current.userId !== payload.sub || current.tokenHash !== presentedHash) {
           throw new AppError(401, 'INVALID_REFRESH_TOKEN', 'Refresh session is invalid.')
         }

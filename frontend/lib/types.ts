@@ -1,8 +1,15 @@
 // Shared types mirroring the backend response contracts.
 
-export type Role = 'ADMIN' | 'PROJECT_MANAGER' | 'DEVELOPER'
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'PROJECT_MANAGER' | 'DEVELOPER'
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE'
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+
+/** The company a user belongs to. Null only for SUPER_ADMIN. */
+export interface Workspace {
+  id: string
+  name: string
+  slug: string
+}
 
 export interface AuthUser {
   id: string
@@ -10,6 +17,8 @@ export interface AuthUser {
   email: string
   role: Role
   isActive: boolean
+  workspaceId: string | null
+  workspace: Workspace | null
   createdAt?: string
   updatedAt?: string
 }

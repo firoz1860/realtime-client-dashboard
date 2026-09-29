@@ -13,7 +13,7 @@ interface AuthContextValue {
   status: AuthStatus
   signupEnabled: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (input: { name: string; email: string; password: string }) => Promise<void>
+  register: (input: { name: string; email: string; password: string; companyName: string }) => Promise<void>
   logout: () => Promise<void>
   updateProfile: (name: string) => Promise<void>
 }
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const register = useCallback(async (input: { name: string; email: string; password: string }) => {
+  const register = useCallback(async (input: { name: string; email: string; password: string; companyName: string }) => {
     try {
       const { user: created } = await api.register(input)
       setUser(created)

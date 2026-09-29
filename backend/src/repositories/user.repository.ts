@@ -8,11 +8,14 @@ const safeSelect = {
   role: true,
   isActive: true,
   createdAt: true,
-  updatedAt: true
+  updatedAt: true,
+  workspaceId: true,
+  // The company this account belongs to. The dashboard shows its name, which
+  // was previously a hardcoded string with no model behind it.
+  workspace: { select: { id: true, name: true, slug: true } }
 } satisfies Prisma.UserSelect
 
 export const userRepository = {
-  findByEmail: (email: string) => prisma.user.findUnique({ where: { email } }),
   findById: (id: string) => prisma.user.findUnique({ where: { id } }),
   findSafeById: (id: string) => prisma.user.findUnique({ where: { id }, select: safeSelect }),
   create: (data: Prisma.UserCreateInput) => prisma.user.create({ data, select: safeSelect }),

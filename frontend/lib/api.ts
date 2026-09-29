@@ -1,10 +1,4 @@
-// Typed API client for the realtime dashboard backend.
-//
-// - Access token is kept in memory only (never localStorage), per the assessment.
-// - The refresh token lives in an HttpOnly cookie set by the backend on /api/auth,
-//   so every request uses `credentials: 'include'`.
-// - On a 401 the client transparently calls /api/auth/refresh once (single-flight)
-//   and retries the original request.
+
 
 import type { AuthUser } from './types'
 
@@ -153,7 +147,7 @@ export const api = {
       return data
     }),
 
-  register: (input: { name: string; email: string; password: string }) =>
+  register: (input: { name: string; email: string; password: string; companyName: string }) =>
     request<{ accessToken: string; user: AuthUser }>('/auth/register', {
       method: 'POST',
       body: input,

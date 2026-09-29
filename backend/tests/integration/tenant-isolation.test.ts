@@ -113,9 +113,16 @@ describeIfDb('tenant isolation (real database, two workspaces)', () => {
 
   it('scopes writes to the active workspace even when the caller omits it', async () => {
     await runInTenant({ workspaceId: fx.b.id }, async () => {
+      // workspaceId is intentionally omitted: the extension must supply it.
+      // Prisma's generated input type still requires the field, so the argument
+      // is cast while the RESULT keeps its type, unlike `as never`.
       const created = await prisma.client.create({
-        data: { name: 'Scoped Client', email: 'scoped@beta.isolation.test' }
-      } as never)
+        data: { name: 'Scoped Client', email: 'scoped@beta.isolation.test' } as unknown as {
+          name: string
+          email: string
+          workspaceId: string
+        }
+      })
       expect(created.workspaceId).toBe(fx.b.id)
       await prisma.client.deleteMany({ where: { id: created.id } })
     })

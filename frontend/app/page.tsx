@@ -162,7 +162,7 @@ function WorkspaceView({ view, onToast, user, socket, onAddNew, onOpenProject, i
   </section>
 }
 
-function PublicHome({ onEnter, onAuth }: { onEnter: () => void; onAuth: (mode: 'login' | 'guest') => void }) {
+function PublicHome({ onEnter, onAuth, signupEnabled }: { onEnter: () => void; onAuth: (mode: 'login' | 'signup' | 'guest') => void; signupEnabled: boolean }) {
   const [scrollY, setScrollY] = useState(0)
 
   useEffect(() => {
@@ -179,12 +179,12 @@ function PublicHome({ onEnter, onAuth }: { onEnter: () => void; onAuth: (mode: '
   }, [])
 
   return <main className="public-home" style={{ '--scroll-progress': `${Math.min(scrollY / 700, 1)}`, '--hero-shift': `${scrollY * 0.18}px`, '--hero-tilt': `${scrollY * -0.018}deg`, '--scroll-wave': `${Math.sin(scrollY / 150) * 34}px`, '--scroll-wave-reverse': `${Math.sin(scrollY / 180) * 86}px`, '--scroll-drop': `${Math.sin(scrollY / 210) * 42 + scrollY * 0.08}px`, '--scroll-rotation': `${Math.sin(scrollY / 240) * 3.2}deg` } as CSSProperties}>
-    <nav className="public-nav"><div className="public-brand"><span className="brand-mark"><Sparkles size={15} fill="currentColor" /></span> orbit<span>.</span></div><div className="public-links"><button type="button" onClick={() => document.getElementById('product')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Product</button><button type="button" onClick={() => document.getElementById('workflow')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Workflow</button><button type="button" onClick={() => document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Stories</button></div><div className="public-actions"><button className="public-login" onClick={() => onAuth('login')}>Log in</button><button className="public-signup" onClick={() => onAuth('login')}>Log in to Orbit <ArrowRight size={14} /></button></div></nav>
-    <section className="public-hero"><div className="hero-copy"><p className="hero-kicker"><span className="kicker-dot" /> The operating system for ambitious teams</p><h1>Make work feel<br /><em>in motion.</em></h1><p className="hero-description">Orbit brings projects, people, and momentum into one beautifully clear workspace.</p><div className="hero-actions"><button className="hero-primary" onClick={() => onAuth('login')}>Open workspace <ArrowRight size={16} /></button><button className="hero-secondary" onClick={onEnter}><Play size={14} fill="currentColor" /> Explore the workspace</button></div><div className="hero-proof"><div className="proof-avatars"><span>MC</span><span>JL</span><span>OP</span><span>+2k</span></div><span>Trusted by teams that ship every week</span></div></div><div className="hero-stage" aria-label="Animated 3D preview of the Orbit workspace"><div className="stage-glow" /><div className="floating-card card-back"><span>Team velocity</span><strong>+24.8%</strong><div className="mini-bars"><i /><i /><i /><i /><i /><i /></div></div><div className="dashboard-3d"><div className="mock-top"><span className="mock-logo">orbit.</span><span className="mock-pill">Live workspace</span></div><div className="mock-title">Good morning, Alex</div><div className="mock-kpis"><span><small>Active projects</small><b>24</b></span><span><small>Tasks shipped</small><b>1,284</b></span><span><small>Team health</small><b>94.6%</b></span></div><div className="mock-chart"><div className="chart-line" /><div className="chart-bars"><i /><i /><i /><i /><i /><i /><i /></div></div><div className="mock-row"><span /><span /><span /></div></div><div className="floating-card card-front"><span>Next milestone</span><strong>Launch review</strong><small>Tomorrow · 09:30</small></div><div className="ai-video-card" aria-label="AI-generated project story preview"><div className="ai-video-head"><span><i /> AI motion preview</span><small>00:24</small></div><div className="ai-video-scene"><div className="scene-orb" /><div className="scene-line line-one" /><div className="scene-line line-two" /><div className="scene-person person-one" /><div className="scene-person person-two" /><div className="scene-caption">From idea<br /><em>to momentum.</em></div><span className="scene-play"><Play size={12} fill="currentColor" /></span></div><div className="ai-video-progress"><span /><i /></div><div className="ai-video-foot"><b>Project story / Northstar</b><span>Generated for your team</span></div></div></div></section>
+    <nav className="public-nav"><div className="public-brand"><span className="brand-mark"><Sparkles size={15} fill="currentColor" /></span> orbit<span>.</span></div><div className="public-links"><button type="button" onClick={() => document.getElementById('product')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Product</button><button type="button" onClick={() => document.getElementById('workflow')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Workflow</button><button type="button" onClick={() => document.getElementById('stories')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>Stories</button></div><div className="public-actions"><button className="public-login" onClick={() => onAuth('login')}>Log in</button><button className="public-signup" onClick={() => onAuth(signupEnabled ? 'signup' : 'login')}>{signupEnabled ? 'Create workspace' : 'Log in to Orbit'} <ArrowRight size={14} /></button></div></nav>
+    <section className="public-hero"><div className="hero-copy"><p className="hero-kicker"><span className="kicker-dot" /> The operating system for ambitious teams</p><h1>Make work feel<br /><em>in motion.</em></h1><p className="hero-description">Orbit brings projects, people, and momentum into one beautifully clear workspace.</p><div className="hero-actions"><button className="hero-primary" onClick={() => onAuth(signupEnabled ? 'signup' : 'login')}>{signupEnabled ? 'Create your workspace' : 'Open workspace'} <ArrowRight size={16} /></button><button className="hero-secondary" onClick={onEnter}><Play size={14} fill="currentColor" /> Explore the workspace</button></div><div className="hero-proof"><div className="proof-avatars"><span>MC</span><span>JL</span><span>OP</span><span>+2k</span></div><span>Trusted by teams that ship every week</span></div></div><div className="hero-stage" aria-label="Animated 3D preview of the Orbit workspace"><div className="stage-glow" /><div className="floating-card card-back"><span>Team velocity</span><strong>+24.8%</strong><div className="mini-bars"><i /><i /><i /><i /><i /><i /></div></div><div className="dashboard-3d"><div className="mock-top"><span className="mock-logo">orbit.</span><span className="mock-pill">Live workspace</span></div><div className="mock-title">Good morning, Alex</div><div className="mock-kpis"><span><small>Active projects</small><b>24</b></span><span><small>Tasks shipped</small><b>1,284</b></span><span><small>Team health</small><b>94.6%</b></span></div><div className="mock-chart"><div className="chart-line" /><div className="chart-bars"><i /><i /><i /><i /><i /><i /><i /></div></div><div className="mock-row"><span /><span /><span /></div></div><div className="floating-card card-front"><span>Next milestone</span><strong>Launch review</strong><small>Tomorrow · 09:30</small></div><div className="ai-video-card" aria-label="AI-generated project story preview"><div className="ai-video-head"><span><i /> AI motion preview</span><small>00:24</small></div><div className="ai-video-scene"><div className="scene-orb" /><div className="scene-line line-one" /><div className="scene-line line-two" /><div className="scene-person person-one" /><div className="scene-person person-two" /><div className="scene-caption">From idea<br /><em>to momentum.</em></div><span className="scene-play"><Play size={12} fill="currentColor" /></span></div><div className="ai-video-progress"><span /><i /></div><div className="ai-video-foot"><b>Project story / Northstar</b><span>Generated for your team</span></div></div></div></section>
     <section className="scroll-signal"><span>Scroll to see the system</span><i /></section>
     <section className="public-section" id="product"><div className="section-label">01 / One clear surface</div><div><h2>Everything moves<br /><em>together.</em></h2><p>Orbit is a connected workspace for teams that plan, build, review, and ship together. Replace scattered tools and status meetings with one shared view of the work.</p><div className="content-points"><div><strong>Plan with confidence</strong><span>Turn ideas into projects, milestones, owners, priorities, and realistic deadlines.</span></div><div><strong>Move with context</strong><span>Keep tasks, conversations, files, and decisions connected to the work they belong to.</span></div><div><strong>Lead with visibility</strong><span>Give every teammate the right view while admins control roles, access, and workspace health.</span></div></div></div></section>
     <section className="feature-stage" id="workflow"><div className="feature-orbit orbit-one" /><div className="feature-orbit orbit-two" /><div className="feature-panel"><span className="panel-kicker">The Orbit workflow</span><h3>From first brief<br />to final <em>ship.</em></h3><p className="panel-description">Create a clear path from the first conversation to the final result. Everyone knows what matters now, what is blocked, and what comes next.</p><div className="panel-flow"><span>Brief</span><ArrowRight size={13} /><span>Build</span><ArrowRight size={13} /><span>Review</span><ArrowRight size={13} /><span className="active-flow">Ship</span></div><div className="workflow-details"><span><b>01</b> Assign ownership</span><span><b>02</b> Track momentum</span><span><b>03</b> Celebrate delivery</span></div></div></section>
-    <section className="public-cta" id="stories"><p>Ready when your next big idea is.</p><h2>Give your team<br /><em>room to move.</em></h2><button className="hero-primary" onClick={() => onAuth('login')}>Open your workspace <ArrowRight size={16} /></button></section>
+    <section className="public-cta" id="stories"><p>Ready when your next big idea is.</p><h2>Give your team<br /><em>room to move.</em></h2><button className="hero-primary" onClick={() => onAuth(signupEnabled ? 'signup' : 'login')}>{signupEnabled ? 'Create your workspace' : 'Open your workspace'} <ArrowRight size={16} /></button></section>
     <footer className="public-footer"><span>orbit<span>.</span></span><span>Projects / People / Momentum</span><span>© {new Date().getFullYear()} Orbit Studio</span></footer>
   </main>
 }
@@ -203,14 +203,14 @@ export default function Page() {
   const [newProjectOpen, setNewProjectOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [showHome, setShowHome] = useState(true)
-  const [authMode, setAuthMode] = useState<'login' | 'guest' | null>(null)
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'guest' | null>(null)
   const [globalSearch, setGlobalSearch] = useState('')
   const [moduleQuery, setModuleQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [projectName, setProjectName] = useState('')
   const [createdProject, setCreatedProject] = useState<string | null>(null)
 
-  const { user, status, login, logout } = useAuth()
+  const { user, status, login, logout, register, signupEnabled } = useAuth()
   const workspace = useWorkspaceData(user, activeNav === 'Chat')
   // Was hardcoded to "Good morning" regardless of the actual time of day.
   const greeting = useMemo(() => {
@@ -224,11 +224,20 @@ export default function Page() {
   const [authPassword, setAuthPassword] = useState('')
   const [authError, setAuthError] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(false)
+  // Signing up creates a workspace, so a company name is required alongside the
+  // person's own name. Without this form a new company had no way in at all:
+  // POST /api/auth/register existed but nothing in the UI called it.
+  const [authName, setAuthName] = useState('')
+  const [authCompany, setAuthCompany] = useState('')
 
   const displayName = user?.name ?? 'Guest user'
   const role = roleLabel(user?.role)
   const displayInitials = user ? initials(user.name) : 'GU'
   const firstName = displayName.split(' ')[0]
+  // Was the hardcoded string 'Orbit Studio'. Comes from the session now, so
+  // each company sees its own name.
+  const workspaceName = user?.workspace?.name ?? (user ? 'Your workspace' : 'Guest preview')
+  const workspaceInitial = workspaceName.trim().charAt(0).toUpperCase() || 'W'
 
   // Enter the workspace automatically once a real session is established
   // (fresh login or a session restored from the refresh cookie on reload).
@@ -281,6 +290,32 @@ export default function Page() {
       setAuthLoading(false)
     }
   }, [authEmail, authPassword, login])
+
+  const handleSignup = useCallback(async () => {
+    if (!authName.trim() || authName.trim().length < 2) { setAuthError('Enter your full name.'); return }
+    if (!authCompany.trim() || authCompany.trim().length < 2) { setAuthError('Enter your company name.'); return }
+    if (!authEmail.trim()) { setAuthError('Enter your work email.'); return }
+    if (authPassword.length < 8) { setAuthError('Password must be at least 8 characters.'); return }
+    setAuthError(null)
+    setAuthLoading(true)
+    try {
+      await register({
+        name: authName.trim(),
+        email: authEmail.trim(),
+        password: authPassword,
+        companyName: authCompany.trim()
+      })
+      setAuthMode(null)
+      setShowHome(false)
+      setAuthPassword('')
+    } catch (err) {
+      // The backend returns field-level messages, which lib/api.ts already
+      // unwraps, so they are shown as-is rather than replaced.
+      setAuthError(err instanceof Error ? err.message : 'Could not create your workspace.')
+    } finally {
+      setAuthLoading(false)
+    }
+  }, [authName, authCompany, authEmail, authPassword, register])
 
   const handleSignOut = useCallback(() => {
     void logout().catch(() => notify('Signed out locally. Server logout could not be confirmed.'))
@@ -425,14 +460,14 @@ export default function Page() {
     } finally { setCreateBusy(false) }
   }, [taskTitle, taskProjectId, taskPriority, taskAssignee, taskDue])
 
-  if (showHome) return <><PublicHome onEnter={() => setShowHome(false)} onAuth={setAuthMode} />{authMode && <div className="auth-preview-backdrop" onClick={() => setAuthMode(null)}><section className="auth-preview" role="dialog" aria-modal="true" aria-labelledby="auth-title" onClick={(event) => event.stopPropagation()}><button className="auth-preview-close" onClick={() => setAuthMode(null)} aria-label="Close authentication dialog">×</button><span className="hero-kicker"><span className="kicker-dot" /> Orbit workspace</span><h2 id="auth-title">{authMode === 'login' ? 'Welcome back.' : 'Guest preview'}</h2><p>{authMode === 'login' ? 'Log in to continue to your workspace.' : 'Preview the layout without live data.'}</p>{authMode !== 'guest' ? <form onSubmit={(event) => { event.preventDefault(); void handleLogin() }}><label>Email address<input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="you@company.com" autoComplete="username" autoFocus /></label><label>Password<input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="At least 8 characters" autoComplete="current-password" /></label>{authError && <div className="auth-error" role="alert">{authError}</div>}<button type="submit" className="hero-primary auth-submit" disabled={authLoading}>{authLoading ? 'Signing in…' : 'Log in to Orbit'} <ArrowRight size={16} /></button><button type="button" className="guest-login-button" onClick={() => setAuthMode('guest')}>Continue as guest</button>{process.env.NODE_ENV === "development" && <small className="auth-seed-hint">Local seed accounts are listed in RUN.md.</small>}</form> : <><div className="guest-note"><span className="kicker-dot" /><div><strong>Guest preview</strong><small>Preview the interface. Sign in to see projects, tasks and live updates.</small></div></div><button className="hero-primary auth-submit" onClick={() => { setAuthMode(null); setShowHome(false) }}>Continue as guest <ArrowRight size={16} /></button></>}<small>Guest access is a UI preview only. Live data requires signing in.</small></section></div>}</>
+  if (showHome) return <><PublicHome onEnter={() => setShowHome(false)} onAuth={setAuthMode} signupEnabled={signupEnabled} />{authMode && <div className="auth-preview-backdrop" onClick={() => setAuthMode(null)}><section className="auth-preview" role="dialog" aria-modal="true" aria-labelledby="auth-title" onClick={(event) => event.stopPropagation()}><button className="auth-preview-close" onClick={() => setAuthMode(null)} aria-label="Close authentication dialog">×</button><span className="hero-kicker"><span className="kicker-dot" /> Orbit workspace</span><h2 id="auth-title">{authMode === 'login' ? 'Welcome back.' : authMode === 'signup' ? 'Create your workspace.' : 'Guest preview'}</h2><p>{authMode === 'login' ? 'Log in to continue to your workspace.' : authMode === 'signup' ? 'Your company gets its own workspace. Everything in it stays private to your team.' : 'Preview the layout without live data.'}</p>{authMode !== 'guest' && signupEnabled && <div className="segmented" role="tablist" aria-label="Authentication mode"><button type="button" role="tab" aria-selected={authMode === 'login'} className={authMode === 'login' ? 'is-active' : ''} onClick={() => { setAuthMode('login'); setAuthError(null) }}>Log in</button><button type="button" role="tab" aria-selected={authMode === 'signup'} className={authMode === 'signup' ? 'is-active' : ''} onClick={() => { setAuthMode('signup'); setAuthError(null) }}>Create workspace</button></div>}{authMode !== 'guest' ? <form onSubmit={(event) => { event.preventDefault(); if (authMode === 'signup') { void handleSignup() } else { void handleLogin() } }}>{authMode === 'signup' && <><label>Your full name<input value={authName} onChange={(event) => setAuthName(event.target.value)} placeholder="Priya Shah" autoComplete="name" minLength={2} maxLength={100} /></label><label>Company name<input value={authCompany} onChange={(event) => setAuthCompany(event.target.value)} placeholder="Acme Agency" autoComplete="organization" minLength={2} maxLength={100} /></label></>}<label>Email address<input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="you@company.com" autoComplete="username" autoFocus /></label><label>Password<input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="At least 8 characters" autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'} /></label>{authError && <div className="auth-error" role="alert">{authError}</div>}<button type="submit" className="hero-primary auth-submit" disabled={authLoading}>{authLoading ? (authMode === 'signup' ? 'Creating workspace…' : 'Signing in…') : (authMode === 'signup' ? 'Create workspace' : 'Log in to Orbit')} <ArrowRight size={16} /></button>{signupEnabled && <button type="button" className="guest-login-button" onClick={() => { setAuthMode(authMode === 'signup' ? 'login' : 'signup'); setAuthError(null) }}>{authMode === 'signup' ? 'Already have an account? Log in' : 'New company? Create a workspace'}</button>}<button type="button" className="guest-login-button" onClick={() => setAuthMode('guest')}>Continue as guest</button>{process.env.NODE_ENV === "development" && <small className="auth-seed-hint">Local seed accounts are listed in RUN.md.</small>}</form> : <><div className="guest-note"><span className="kicker-dot" /><div><strong>Guest preview</strong><small>Preview the interface. Sign in to see projects, tasks and live updates.</small></div></div><button className="hero-primary auth-submit" onClick={() => { setAuthMode(null); setShowHome(false) }}>Continue as guest <ArrowRight size={16} /></button></>}<small>Guest access is a UI preview only. Live data requires signing in.</small></section></div>}</>
 
   return (
   <main className="dashboard-shell">
       <div className={`mobile-backdrop ${mobileOpen ? 'show' : ''}`} onClick={() => setMobileOpen(false)} />
       <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>
         <div className="brand"><div className="brand-mark"><Sparkles size={16} fill="currentColor" /></div><span>orbit<span className="brand-dot">.</span></span></div>
-        <div className="workspace-switcher" aria-label="Orbit Studio workspace"><div className="workspace-avatar">O</div><div><strong>Orbit Studio</strong><small>Workspace</small></div></div>
+        <div className="workspace-switcher" aria-label={`${workspaceName} workspace`}><div className="workspace-avatar">{workspaceInitial}</div><div><strong>{workspaceName}</strong><small>{user?.workspace?.slug ?? 'Workspace'}</small></div></div>
         <nav className="sidebar-nav" aria-label="Main navigation">
           <p className="nav-label">Workspace</p>
           {navItems.filter(({ label }) => user?.role !== 'DEVELOPER' || (label !== 'Projects' && label !== 'Team')).map(({ label, icon: Icon, count }) => <button type="button" key={label} title={label} className={`nav-item ${activeNav === label ? 'active' : ''}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); selectNav(label) }} aria-current={activeNav === label ? 'page' : undefined}><Icon key={label === 'Notifications' ? workspace.notificationPulse : label === 'Chat' ? workspace.chatPulse : 0} size={17} className={label === 'Notifications' && workspace.notificationPulse > 0 || label === 'Chat' && workspace.chatPulse > 0 ? 'event-shake' : undefined} /><span>{label}</span>{(() => { const badge = label === 'Notifications' ? workspace.unread : label === 'Chat' ? workspace.chatUnread : count; return badge ? <b>{badge}</b> : null })()}</button>)}
