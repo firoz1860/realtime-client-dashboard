@@ -2,6 +2,7 @@ import { Role, TaskStatus } from '@prisma/client'
 import { prisma } from '../lib/prisma'
 import type { AuthUser } from '../types/auth'
 import { AppError } from '../utils/app-error'
+import { requireWorkspaceId } from '../lib/tenant-context'
 import { presenceService } from './presence.service'
 import { activityRepository } from '../repositories/activity.repository'
 
@@ -14,7 +15,7 @@ export const dashboardService = {
       prisma.task.count({ where: { isOverdue: true, status: { not: TaskStatus.DONE } } }),
       activityRepository.recent(user, 20)
     ])
-    return { totalProjects, taskStatus, overdueCount, onlineUsers: presenceService.count(), globalActivity }
+    return { totalProjects, taskStatus, overdueCount, onlineUsers: presenceService.count(requireWorkspaceId()), globalActivity }
   },
 
   pm: async (user: AuthUser) => {

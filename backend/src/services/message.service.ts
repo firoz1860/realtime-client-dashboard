@@ -1,4 +1,5 @@
 import { eventBus } from '../lib/events'
+import { requireWorkspaceId } from '../lib/tenant-context'
 import { messageRepository } from '../repositories/message.repository'
 import type { AuthUser } from '../types/auth'
 import { AppError } from '../utils/app-error'
@@ -25,7 +26,7 @@ export const messageService = {
   create: async (projectId: string, user: AuthUser, body: string) => {
     await assertAccess(projectId, user)
     const message = await messageRepository.create({ projectId, senderId: user.id, body })
-    eventBus.emit('messageCreated', { messageId: message.id, projectId })
+    eventBus.emit('messageCreated', { workspaceId: requireWorkspaceId(), messageId: message.id, projectId })
     return message
   },
 

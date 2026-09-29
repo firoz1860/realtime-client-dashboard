@@ -88,6 +88,6 @@ describe('task status transaction', () => {
     expect(tx.activityLog.create).toHaveBeenCalledOnce()
     expect(tx.notification.create).toHaveBeenCalledOnce()
     expect(mocks.emit).toHaveBeenCalledWith('activityCreated', expect.objectContaining({ activityId: 'activity-1' }))
-    expect(mocks.emit).toHaveBeenCalledWith('notificationCreated', { notificationId: 'notification-1', recipientId: 'pm-1' })
+    expect(mocks.emit).toHaveBeenCalledWith('notificationCreated', { workspaceId: 'ws-test-1', notificationId: 'notification-1', recipientId: 'pm-1' })
   })
 })

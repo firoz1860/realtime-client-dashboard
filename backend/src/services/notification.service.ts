@@ -1,4 +1,5 @@
 import { eventBus } from '../lib/events'
+import { requireWorkspaceId } from '../lib/tenant-context'
 import { notificationRepository } from '../repositories/notification.repository'
 import { AppError } from '../utils/app-error'
 import { paginationMeta } from '../utils/pagination'
@@ -16,16 +17,16 @@ export const notificationService = {
     if (owned.isRead) return owned
     const result = await notificationRepository.markRead(id, recipientId)
     if (result.count) {
-      eventBus.emit('notificationRead', { notificationId: id, recipientId })
-      eventBus.emit('notificationsChanged', { recipientId })
+      eventBus.emit('notificationRead', { workspaceId: requireWorkspaceId(), notificationId: id, recipientId })
+      eventBus.emit('notificationsChanged', { workspaceId: requireWorkspaceId(), recipientId })
     }
     return notificationRepository.findOwnedById(id, recipientId)
   },
   markAllRead: async (recipientId: string) => {
     const result = await notificationRepository.markAllRead(recipientId)
     if (result.count) {
-      eventBus.emit('notificationReadAll', { recipientId })
-      eventBus.emit('notificationsChanged', { recipientId })
+      eventBus.emit('notificationReadAll', { workspaceId: requireWorkspaceId(), recipientId })
+      eventBus.emit('notificationsChanged', { workspaceId: requireWorkspaceId(), recipientId })
     }
     return { updated: result.count }
   }

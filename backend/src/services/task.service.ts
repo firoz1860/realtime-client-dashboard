@@ -174,6 +174,7 @@ export const taskService = {
     })
 
     eventBus.emit('activityCreated', {
+      workspaceId: requireWorkspaceId(),
       activityId: result.activity.id,
       projectId,
       taskId: result.task.id,
@@ -181,8 +182,8 @@ export const taskService = {
       developerId: result.task.assignedDeveloperId
     })
     for (const notification of result.notifications) {
-      eventBus.emit('notificationCreated', { notificationId: notification.id, recipientId: notification.recipientId })
-      eventBus.emit('notificationsChanged', { recipientId: notification.recipientId })
+      eventBus.emit('notificationCreated', { workspaceId: requireWorkspaceId(), notificationId: notification.id, recipientId: notification.recipientId })
+      eventBus.emit('notificationsChanged', { workspaceId: requireWorkspaceId(), recipientId: notification.recipientId })
     }
     return result.task
   },
@@ -356,6 +357,7 @@ export const taskService = {
 
     if (result.activityId) {
       eventBus.emit('activityCreated', {
+        workspaceId: requireWorkspaceId(),
         activityId: result.activityId,
         projectId: result.projectId,
         taskId: result.task.id,
@@ -364,8 +366,8 @@ export const taskService = {
       })
     }
     for (const notification of result.notificationIds) {
-      eventBus.emit('notificationCreated', { notificationId: notification.id, recipientId: notification.recipientId })
-      eventBus.emit('notificationsChanged', { recipientId: notification.recipientId })
+      eventBus.emit('notificationCreated', { workspaceId: requireWorkspaceId(), notificationId: notification.id, recipientId: notification.recipientId })
+      eventBus.emit('notificationsChanged', { workspaceId: requireWorkspaceId(), recipientId: notification.recipientId })
     }
     return taskForResponse(result.task, user)
   }

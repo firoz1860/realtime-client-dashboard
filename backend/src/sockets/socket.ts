@@ -11,7 +11,24 @@ import { notificationService } from '../services/notification.service'
 import { presenceService } from '../services/presence.service'
 import { projectService } from '../services/project.service'
 import type { AuthUser } from '../types/auth'
+import { runInTenant } from '../lib/tenant-context'
 import { verifyAccessToken } from '../utils/jwt'
+
+/**
+ * Room names are workspace-prefixed.
+ *
+ * Spec: docs/superpowers/specs/2026-09-28-multi-tenant-workspaces-design.md 6.1
+ *
+ * role:ADMIN was previously a single global room, so every admin of every
+ * company shared it and would have received each other's broadcasts. Project
+ * rooms need no prefix: project ids are workspace-owned and project:join is
+ * authorised through the scoped client, so a cross-tenant join finds no
+ * project and is refused.
+ */
+const adminRoom = (workspaceId: string): string => `ws:${workspaceId}:role:ADMIN`
+const userRoom = (workspaceId: string, userId: string): string =>
+  `ws:${workspaceId}:user:${userId}`
+
 import { uuidSchema } from '../schemas/common.schema'
 
 interface ServerToClientEvents {
@@ -58,53 +75,81 @@ const authenticateSocket = async (socket: AppSocket): Promise<void> => {
   const token = socket.handshake.auth.token
   if (typeof token !== 'string' || token.length === 0) throw new Error('Authentication required')
   const payload = verifyAccessToken(token)
-  const user = await userRepository.findById(payload.sub)
+  // Same order as requireAuth: take the scope from the token, then read the
+  // user through the scoped client. Keeps socket.ts off the prismaSystem
+  // allowlist and proves the user belongs to the workspace it claims.
+  if (!payload.ws) throw new Error('Session predates workspaces')
+  const workspaceId = payload.ws
+  const user = await runInTenant({ workspaceId }, () => userRepository.findById(payload.sub))
   if (!user || !user.isActive) throw new Error('Account unavailable')
-  socket.data.user = { id: user.id, email: user.email, role: user.role, isActive: user.isActive, workspaceId: user.workspaceId }
+  socket.data.user = {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    isActive: user.isActive,
+    workspaceId: user.workspaceId
+  }
 }
 
 const installDomainEventForwarding = (io: AppServer): void => {
   eventBus.on('activityCreated', (payload) => {
-    void activityService.getEvent(payload.activityId).then((activity) => {
+    void runInTenant({ workspaceId: payload.workspaceId }, () =>
+      activityService.getEvent(payload.activityId)
+    ).then((activity) => {
       const safePayload = safeActivityPayload(activity)
       if (!safePayload) return
-      io.to('role:ADMIN').emit('activity:new', safePayload)
-      io.to(`user:${payload.pmOwnerId}`).emit('activity:new', safePayload)
-      if (payload.developerId) io.to(`user:${payload.developerId}`).emit('activity:new', safePayload)
+      io.to(adminRoom(payload.workspaceId)).emit('activity:new', safePayload)
+      io.to(userRoom(payload.workspaceId, payload.pmOwnerId)).emit('activity:new', safePayload)
+      if (payload.developerId) {
+        io.to(userRoom(payload.workspaceId, payload.developerId)).emit('activity:new', safePayload)
+      }
       if (safePayload.eventType === 'TASK_STATUS_CHANGED') {
-        io.to('role:ADMIN').emit('task:status-updated', safePayload)
-        io.to(`user:${payload.pmOwnerId}`).emit('task:status-updated', safePayload)
-        if (payload.developerId) io.to(`user:${payload.developerId}`).emit('task:status-updated', safePayload)
+        io.to(adminRoom(payload.workspaceId)).emit('task:status-updated', safePayload)
+        io.to(userRoom(payload.workspaceId, payload.pmOwnerId)).emit('task:status-updated', safePayload)
+        if (payload.developerId) {
+          io.to(userRoom(payload.workspaceId, payload.developerId)).emit('task:status-updated', safePayload)
+        }
       }
     }).catch((error: unknown) => logger.error({ err: error }, 'Failed to emit activity event'))
   })
 
   eventBus.on('notificationCreated', (payload) => {
-    void notificationService.get(payload.notificationId, payload.recipientId).then((notification) => {
-      if (notification) io.to(`user:${payload.recipientId}`).emit('notification:new', notification)
+    void runInTenant({ workspaceId: payload.workspaceId }, () =>
+      notificationService.get(payload.notificationId, payload.recipientId)
+    ).then((notification) => {
+      if (notification) {
+        io.to(userRoom(payload.workspaceId, payload.recipientId)).emit('notification:new', notification)
+      }
     }).catch((error: unknown) => logger.error({ err: error }, 'Failed to emit notification'))
   })
 
   eventBus.on('notificationRead', (payload) => {
-    io.to(`user:${payload.recipientId}`).emit('notification:read', { id: payload.notificationId })
+    io.to(userRoom(payload.workspaceId, payload.recipientId))
+      .emit('notification:read', { id: payload.notificationId })
   })
 
   eventBus.on('notificationReadAll', (payload) => {
-    io.to(`user:${payload.recipientId}`).emit('notification:read-all', { success: true })
+    io.to(userRoom(payload.workspaceId, payload.recipientId))
+      .emit('notification:read-all', { success: true })
   })
 
   eventBus.on('notificationsChanged', (payload) => {
-    void notificationService.unreadCount(payload.recipientId).then((count) => {
-      io.to(`user:${payload.recipientId}`).emit('notification:unread-count', { count })
+    void runInTenant({ workspaceId: payload.workspaceId }, () =>
+      notificationService.unreadCount(payload.recipientId)
+    ).then((count) => {
+      io.to(userRoom(payload.workspaceId, payload.recipientId))
+        .emit('notification:unread-count', { count })
     }).catch((error: unknown) => logger.error({ err: error }, 'Failed to emit unread count'))
   })
 
   eventBus.on('userAuthorizationChanged', (payload) => {
-    io.in(`user:${payload.userId}`).disconnectSockets(true)
+    io.in(userRoom(payload.workspaceId, payload.userId)).disconnectSockets(true)
   })
 
   eventBus.on('messageCreated', (payload) => {
-    void messageService.getEvent(payload.messageId).then((message) => {
+    void runInTenant({ workspaceId: payload.workspaceId }, () =>
+      messageService.getEvent(payload.messageId)
+    ).then((message) => {
       if (message) io.to(`project:${payload.projectId}`).emit('message:new', message)
     }).catch((error: unknown) => logger.error({ err: error }, 'Failed to emit message'))
   })
@@ -112,11 +157,19 @@ const installDomainEventForwarding = (io: AppServer): void => {
 
 const registerConnection = (io: AppServer, socket: AppSocket): void => {
   const user = socket.data.user
-  void socket.join(`user:${user.id}`)
-  if (user.role === Role.ADMIN) void socket.join('role:ADMIN')
+  // A socket with no workspace cannot be placed in any tenant room.
+  if (!user.workspaceId) {
+    socket.disconnect(true)
+    return
+  }
+  const workspaceId = user.workspaceId
 
-  presenceService.connect(user.id, socket.id)
-  io.to('role:ADMIN').emit('presence:count', { onlineUsers: presenceService.count() })
+  void socket.join(userRoom(workspaceId, user.id))
+  if (user.role === Role.ADMIN) void socket.join(adminRoom(workspaceId))
+
+  presenceService.connect(workspaceId, user.id, socket.id)
+  io.to(adminRoom(workspaceId))
+    .emit('presence:count', { onlineUsers: presenceService.count(workspaceId) })
 
   socket.on('project:join', (projectId, callback) => {
     const ack = typeof callback === 'function' ? callback : () => undefined
@@ -124,7 +177,8 @@ const registerConnection = (io: AppServer, socket: AppSocket): void => {
       ack({ ok: false, error: 'INVALID_PROJECT_ID' })
       return
     }
-    void projectService.canJoinRoom(projectId, user).then((allowed) => {
+    void runInTenant({ workspaceId }, () => projectService.canJoinRoom(projectId, user))
+      .then((allowed) => {
       if (!allowed) return ack({ ok: false, error: 'FORBIDDEN' })
       void socket.join(`project:${projectId}`)
       ack({ ok: true })
@@ -138,14 +192,15 @@ const registerConnection = (io: AppServer, socket: AppSocket): void => {
   socket.on('activity:catchup', (limit, callback) => {
     const ack = typeof callback === 'function' ? callback : () => undefined
     const safeLimit = Number.isInteger(limit) ? Math.min(Math.max(limit, 1), 50) : 20
-    void activityService.recent(user, safeLimit)
+    void runInTenant({ workspaceId }, () => activityService.recent(user, safeLimit))
       .then((data) => ack({ ok: true, data }))
       .catch(() => ack({ ok: false, error: 'CATCHUP_FAILED' }))
   })
 
   socket.on('disconnect', () => {
-    presenceService.disconnect(user.id, socket.id)
-    io.to('role:ADMIN').emit('presence:count', { onlineUsers: presenceService.count() })
+    presenceService.disconnect(workspaceId, user.id, socket.id)
+    io.to(adminRoom(workspaceId))
+      .emit('presence:count', { onlineUsers: presenceService.count(workspaceId) })
   })
 }
 

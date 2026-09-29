@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { Role } from '@prisma/client'
 import { eventBus } from '../lib/events'
+import { requireWorkspaceId } from '../lib/tenant-context'
 import { userRepository } from '../repositories/user.repository'
 import { paginationMeta } from '../utils/pagination'
 import { AppError } from '../utils/app-error'
@@ -53,7 +54,7 @@ export const userService = {
     const authorizationChanged =
       (input.role !== undefined && input.role !== existing.role) ||
       (input.isActive !== undefined && input.isActive !== existing.isActive)
-    if (authorizationChanged) eventBus.emit('userAuthorizationChanged', { userId: id })
+    if (authorizationChanged) eventBus.emit('userAuthorizationChanged', { workspaceId: requireWorkspaceId(), userId: id })
     return updated
   }
 }

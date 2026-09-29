@@ -80,7 +80,7 @@ export const projectService = {
       return { project, activity }
     })
 
-    eventBus.emit('activityCreated', { activityId: created.activity.id, projectId: created.project.id, taskId: null, pmOwnerId: ownerId, developerId: null })
+    eventBus.emit('activityCreated', { workspaceId: requireWorkspaceId(), activityId: created.activity.id, projectId: created.project.id, taskId: null, pmOwnerId: ownerId, developerId: null })
     return created.project
   },
 
@@ -112,7 +112,7 @@ export const projectService = {
       return { project, activity }
     })
 
-    eventBus.emit('activityCreated', { activityId: result.activity.id, projectId: id, taskId: null, pmOwnerId: existing.createdById, developerId: null })
+    eventBus.emit('activityCreated', { workspaceId: requireWorkspaceId(), activityId: result.activity.id, projectId: id, taskId: null, pmOwnerId: existing.createdById, developerId: null })
     return result.project
   },
 
